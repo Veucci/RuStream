@@ -68,6 +68,7 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
 - **utc_logging**: Boolean flag to set timezone to UTC in the output logs. Defaults to `true`
 - **media_host**: IP address to host the server. Defaults to `0.0.0.0`
 - **media_port**: Port number to host the application. Defaults to `8000`
+- **base_url**: URL path prefix under which the application is served, e.g. `/rustream`. Defaults to `/`
 - **session_duration**: Time _(in seconds)_ each authenticated session should last. Defaults to `3600`
 - **file_formats**: Vector of supported file formats. Defaults to `[mp4, mov, jpg, jpeg]`
 - **workers**: Number of workers to spin up for the server. Defaults to the number of physical cores.

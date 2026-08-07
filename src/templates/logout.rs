@@ -76,7 +76,7 @@ pub fn get_content() -> String {
         width="200" height="200" alt="Image" class="center">
 </p>
 {% if show_login %}
-    <button style="text-align:center" onClick="window.location.href = '/';">LOGIN</button>
+    <button style="text-align:center" onClick="window.location.href = '{{ base_url }}';">LOGIN</button>
 {% else %}
     <h3>Please close the session window</h3>
 {% endif %}

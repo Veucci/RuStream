@@ -8,7 +8,7 @@ use fernet::Fernet;
 use minijinja;
 use serde::Serialize;
 
-use crate::{constant, squire};
+use crate::{constant, routes, squire};
 
 /// Struct for representing a JSON Response with a redirect URL.
 #[derive(Serialize)]
@@ -72,7 +72,7 @@ pub async fn login(request: HttpRequest,
     log::info!("Session for '{}' will be valid until {}", mapped.get("username").unwrap(), expiration);
 
     let mut response = HttpResponse::Ok().json(RedirectResponse {
-        redirect_url: "/home".to_string(),
+        redirect_url: routes::join_path(&config.base_url, "/home"),
     });
     response.add_cookie(&cookie).unwrap();
     response
@@ -121,6 +121,7 @@ pub async fn logout(request: HttpRequest,
         }
         rendered = logout_template.render(minijinja::context!(
             version => metadata.pkg_version,
+            base_url => &config.base_url,
             detail => "You have been logged out successfully."
         )).unwrap();
 
@@ -132,6 +133,7 @@ pub async fn logout(request: HttpRequest,
         log::debug!("No stored session found for {}", host);
         rendered = logout_template.render(minijinja::context!(
                 version => metadata.pkg_version,
+                base_url => &config.base_url,
                 detail => "You are not logged in. Please click the button below to proceed.",
                 show_login => true
             )).unwrap();
@@ -177,6 +179,7 @@ pub async fn home(request: HttpRequest,
         .body(
             listing.render(minijinja::context!(
                 version => metadata.pkg_version,
+                base_url => &config.base_url,
                 files => listing_page.files,
                 user => auth_response.username,
                 secure_index => constant::SECURE_INDEX,
@@ -200,6 +203,7 @@ pub async fn home(request: HttpRequest,
 #[get("/error")]
 pub async fn error(request: HttpRequest,
                    metadata: web::Data<Arc<constant::MetaData>>,
+                   config: web::Data<Arc<squire::settings::Config>>,
                    template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
     if let Some(detail) = request.cookie("detail") {
         log::info!("Error response for /error: {}", detail.value());
@@ -208,6 +212,7 @@ pub async fn error(request: HttpRequest,
             .content_type("text/html; charset=utf-8")
             .body(session.render(minijinja::context!(
                 version => metadata.pkg_version,
+                base_url => &config.base_url,
                 reason => detail.value()
             )).unwrap());
     }
@@ -221,7 +226,7 @@ pub async fn error(request: HttpRequest,
             title => "LOGIN FAILED",
             description => "USER ERROR - REPLACE USER",
             help => r"Forgot Password?\n\nRelax and try to remember your password.",
-            button_text => "LOGIN", button_link => "/",
+            button_text => "LOGIN", button_link => routes::join_path(&config.base_url, "/"),
             block_navigation => true
         )).unwrap())
 }
@@ -242,7 +247,7 @@ pub fn failed_auth(auth_response: squire::authenticator::AuthToken,
     let detail = auth_response.detail;
     let age = Duration::new(3, 0);
     let base_cookie = Cookie::build("detail", detail)
-        .path("/error")
+        .path(routes::join_path(&config.base_url, "/error"))
         .http_only(true)
         .same_site(SameSite::Strict)
         .max_age(age);
@@ -253,6 +258,6 @@ pub fn failed_auth(auth_response: squire::authenticator::AuthToken,
         base_cookie.finish()
     };
     response.cookie(cookie);
-    response.append_header(("Location", "/error"));
+    response.append_header(("Location", routes::join_path(&config.base_url, "/error")));
     response.finish()
 }

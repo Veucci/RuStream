@@ -16,6 +16,8 @@ pub struct Config {
     pub media_host: String,
     /// Port number for hosting the application.
     pub media_port: u16,
+    /// URL path prefix under which the application is served.
+    pub base_url: String,
     /// Duration of a session in seconds.
     pub session_duration: i64,
     /// List of supported file formats.
@@ -63,6 +65,9 @@ pub fn default_media_host() -> String {
 
 /// Returns the default media port (8000)
 pub fn default_media_port() -> u16 { 8000 }
+
+/// Returns the default base URL path prefix ("/").
+pub fn default_base_url() -> String { "/".to_string() }
 
 /// Returns the default session duration (3600 seconds)
 pub fn default_session_duration() -> i64 { 3600 }

@@ -462,7 +462,7 @@ pub fn get_content() -> String {
                 li.querySelectorAll('span')[0].innerHTML = Math.round(percent_complete) + '%'
                 li.querySelectorAll('span')[1].style.width = percent_complete + '%'
             }
-            http.open('POST', window.location.origin + '/upload', true);  // asynchronous session
+            http.open('POST', window.location.origin + prefixed('/upload'), true);  // asynchronous session
             http.setRequestHeader('secure-flag', checkbox.checked);
             http.send(data)
             li.querySelector('.cross').onclick = () => http.abort()
@@ -485,17 +485,19 @@ pub fn get_content() -> String {
         }
     </script>
     <script>
+        const BASE_URL = "{{ base_url }}";
+        function prefixed(path) { return BASE_URL === "/" ? path : BASE_URL + path; }
         function goHome() {
-            window.location.href = "/home";
+            window.location.href = prefixed("/home");
         }
         function goProfile() {
-            window.location.href = '/profile';
+            window.location.href = prefixed('/profile');
         }
         function logOut() {
-            window.location.href = "/logout";
+            window.location.href = prefixed("/logout");
         }
         function upload() {
-            window.location.href = "/upload";
+            window.location.href = prefixed("/upload");
         }
         function goBack() {
             window.history.back();

@@ -79,7 +79,7 @@ pub fn get_content() -> String {
         onerror="this.src='https://vigneshrao.com/open-source/images/gif/shattered_fusion.gif'"
         width="200" height="200" alt="Image" class="center">
 </p>
-<button style="text-align:center" onClick="window.location.href = '/';">LOGIN</button>
+<button style="text-align:center" onClick="window.location.href = '{{ base_url }}';">LOGIN</button>
 <br>
 <button style="text-align:center" onClick="alert('Forgot Password?\n\nRelax and try to remember your password.');">HELP
 </button>

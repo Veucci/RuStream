@@ -235,17 +235,19 @@ pub fn get_content() -> String {
     {% endif %}
     <hr>
     <script>
+        const BASE_URL = "{{ base_url }}";
+        function prefixed(path) { return BASE_URL === "/" ? path : BASE_URL + path; }
         function goHome() {
-            window.location.href = "/home";
+            window.location.href = prefixed("/home");
         }
         function goProfile() {
-            window.location.href = '/profile';
+            window.location.href = prefixed('/profile');
         }
         function logOut() {
-            window.location.href = "/logout";
+            window.location.href = prefixed("/logout");
         }
         function upload() {
-            window.location.href = "/upload";
+            window.location.href = prefixed("/upload");
         }
         function goBack() {
             window.history.back();
@@ -284,7 +286,7 @@ pub fn get_content() -> String {
 
         function editAction(action, trueURL, relativePath, newName) {
             let http = new XMLHttpRequest();
-            http.open('POST', window.location.origin + `/edit`, true);  // asynchronous session
+            http.open('POST', window.location.origin + prefixed('/edit'), true);  // asynchronous session
             http.setRequestHeader('Content-Type', 'application/json'); // Set content type to JSON
             http.setRequestHeader('edit-action', action);
             http.onreadystatechange = function() {

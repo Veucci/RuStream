@@ -8,3 +8,12 @@ pub mod auth;
 pub mod upload;
 /// Module for `/edit` entrypoint that handles delete/rename actions.
 pub mod fileio;
+
+/// Joins a base URL prefix with a path, keeping the root prefix ("/") clean.
+pub fn join_path(base_url: &str, path: &str) -> String {
+    if base_url == "/" {
+        path.to_string()
+    } else {
+        format!("{}{}", base_url, path)
+    }
+}

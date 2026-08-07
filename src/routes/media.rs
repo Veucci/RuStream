@@ -201,12 +201,13 @@ pub async fn stream(request: HttpRequest,
     if __target.is_file() {
         let landing = template.get_template("landing").unwrap();
         let rust_iter = squire::content::get_iter(&__target, &config.file_formats);
-        let render_path = format!("/media?file={}", url_encode(&filepath));
+        let render_path = routes::join_path(&config.base_url, &format!("/media?file={}", url_encode(&filepath)));
         let prev = rust_iter.previous.unwrap_or_default();
         let next = rust_iter.next.unwrap_or_default();
         let secure_index = constant::SECURE_INDEX.to_string();
         let mut context_builder = vec![
             ("version", &metadata.pkg_version),
+            ("base_url", &config.base_url),
             ("media_title", &__filename),
             ("path", &render_path),
             ("previous", &prev),
@@ -225,7 +226,7 @@ pub async fn stream(request: HttpRequest,
         let subtitle = subtitles(__target, &filepath);
         let mut sfx_file = String::new();
         if subtitle.vtt.exists() {
-            sfx_file = format!("/track?file={}", url_encode(&subtitle.vtt_file));
+            sfx_file = routes::join_path(&config.base_url, &format!("/track?file={}", url_encode(&subtitle.vtt_file)));
         } else if subtitle.srt.exists() {
             log::info!("Converting {:?} to {:?} for subtitles",
                 subtitle.srt.file_name().unwrap(),
@@ -233,7 +234,7 @@ pub async fn stream(request: HttpRequest,
             match squire::subtitles::srt_to_vtt(&subtitle.srt) {
                 Ok(_) => {
                     log::debug!("Successfully converted srt to vtt file");
-                    sfx_file = format!("/track?file={}", url_encode(&subtitle.vtt_file));
+                    sfx_file = routes::join_path(&config.base_url, &format!("/track?file={}", url_encode(&subtitle.vtt_file)));
                 }
                 Err(err) => log::error!("Failed to convert srt to vtt: {}", err),
             }

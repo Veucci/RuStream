@@ -155,10 +155,12 @@ pub fn get_content() -> String {
     <i class="{{ file.font }}"></i>&nbsp;&nbsp;<a href="{{ file.path }}">{{ file.name }}</a>
 {% endif %}
 <script>
-    function goHome() { window.location.href = "/home"; }
-    function goProfile() { window.location.href = '/profile'; }
-    function logOut() { window.location.href = "/logout"; }
-    function upload() { window.location.href = "/upload"; }
+    const BASE_URL = "{{ base_url }}";
+    function prefixed(path) { return BASE_URL === "/" ? path : BASE_URL + path; }
+    function goHome() { window.location.href = prefixed("/home"); }
+    function goProfile() { window.location.href = prefixed('/profile'); }
+    function logOut() { window.location.href = prefixed("/logout"); }
+    function upload() { window.location.href = prefixed("/upload"); }
     function goBack() { window.history.back(); }
 </script>
 <script>
@@ -234,7 +236,7 @@ pub fn get_content() -> String {
 
     setInterval(function () {
         setCookieWithShortExpiration("detail", "Session Expired", 5);
-        window.location.href = "/error";
+        window.location.href = prefixed("/error");
     }, {{ time_left }} * 1000 - 1000); // Convert time_left to milliseconds and subract 1 second
 </script>
 </body>

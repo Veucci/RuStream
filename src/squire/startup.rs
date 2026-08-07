@@ -198,6 +198,19 @@ fn parse_vec(key: &str) -> Option<Vec<String>> {
     }
 }
 
+/// Normalizes the base URL to start with a single leading slash and no trailing slashes.
+fn normalize_base_url(value: String) -> String {
+    let mut base = value.trim().to_string();
+    if !base.starts_with('/') {
+        base.insert(0, '/');
+    }
+    base = base.trim_end_matches('/').to_string();
+    if base.is_empty() {
+        base = "/".to_string();
+    }
+    base
+}
+
 /// Extracts the env var by key and parses it as a `PathBuf`
 ///
 /// # Arguments
@@ -308,6 +321,10 @@ fn load_env_vars() -> settings::Config {
     let key_file = parse_path("key_file").unwrap_or(settings::default_ssl());
     let cert_file = parse_path("cert_file").unwrap_or(settings::default_ssl());
     let max_payload_size = parse_max_payload("max_payload_size").unwrap_or(settings::default_max_payload_size());
+    let base_url = match std::env::var("base_url") {
+        Ok(val) => normalize_base_url(val),
+        Err(_) => settings::default_base_url(),
+    };
     settings::Config {
         authorization,
         media_source,
@@ -315,6 +332,7 @@ fn load_env_vars() -> settings::Config {
         utc_logging,
         media_host,
         media_port,
+        base_url,
         session_duration,
         file_formats,
         workers,

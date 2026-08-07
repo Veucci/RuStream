@@ -127,6 +127,7 @@ pub async fn upload_files(request: HttpRequest,
         .content_type("text/html; charset=utf-8")
         .body(landing.render(minijinja::context!(
             version => metadata.pkg_version,
+            base_url => &config.base_url,
             user => auth_response.username,
             secure_index => constant::SECURE_INDEX
         )).unwrap())
