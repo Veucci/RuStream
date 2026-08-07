@@ -100,6 +100,8 @@ docker compose up -d --build
 
 The container listens on port `8000`, the port can be changed by setting `media_port` in `.env`. Media files are served from the `media/` directory, mounted to `/data/media` inside the container, so `media_source` in `.env` must be set to `/data/media`.
 
+> The container runs as the host user (`UID`/`GID` from `.env`) so that files in the bind-mounted `media/` folder stay readable/writable. Set `UID` and `GID` to the user that owns the `media/` folder on the host (`id -u` and `id -g`).
+
 Images are published to GHCR, tagged `stable` for `main` branch builds and `beta` for `dev` branch builds.
 
 ```shell

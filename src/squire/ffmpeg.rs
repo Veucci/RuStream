@@ -97,18 +97,23 @@ pub fn convert(filepath: &Path, target_format: &str) -> Result<String, String> {
     }
 
     log::info!("Converting {:?} to {}", filepath, target);
-    let status = Command::new("ffmpeg")
+    let output = Command::new("ffmpeg")
         .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
         .arg(filepath)
         .arg(&output_path)
-        .status();
-    match status {
-        Ok(exit) if exit.success() => {
+        .output();
+    match output {
+        Ok(result) if result.status.success() => {
             log::info!("Converted {:?} to {:?}", filepath, output_path);
             Ok(output_path.to_string_lossy().to_string())
         }
-        Ok(exit) => {
-            let reason = format!("ffmpeg exited with status '{}' while converting to '{}'", exit, target);
+        Ok(result) => {
+            let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
+            let reason = if stderr.is_empty() {
+                format!("ffmpeg exited with status '{}' while converting to '{}'", result.status, target)
+            } else {
+                format!("ffmpeg failed while converting to '{}': {}", target, stderr)
+            };
             log::error!("{}", reason);
             Err(reason)
         }

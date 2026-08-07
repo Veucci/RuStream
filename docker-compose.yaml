@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: rustream
     restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
     env_file:
       - .env
     ports:
