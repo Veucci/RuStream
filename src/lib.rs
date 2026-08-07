@@ -30,10 +30,10 @@ fn configure(cfg: &mut web::ServiceConfig) {
         .service(routes::fileio::edit)
         .service(routes::fileio::convert)
         .service(routes::fileio::convert_status)
-        .service(routes::auth::error)
         .service(routes::media::track)
         .service(routes::media::stream)
         .service(routes::media::streaming_endpoint)
+        .service(routes::media::file_info)
         .service(routes::media::download)
         .service(routes::upload::upload_files)
         .service(routes::upload::save_files);

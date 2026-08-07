@@ -75,8 +75,10 @@ pub fn default_base_url() -> String { "/".to_string() }
 pub fn default_session_duration() -> i64 { 3600 }
 
 /// Returns the file formats supported by default.
+///
+/// A single `*` entry acts as a wildcard, making all files eligible for listing.
 pub fn default_file_formats() -> Vec<String> {
-    vec!["mp4".to_string(), "mov".to_string(), "jpg".to_string(), "jpeg".to_string()]
+    vec!["*".to_string()]
 }
 
 /// Returns the default number of worker threads (half of logical cores, at least one)

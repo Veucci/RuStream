@@ -57,38 +57,20 @@ pub fn get_content() -> String {
         }
     </style>
     <style>
-        .dropbtn {
+        .user-actions {
             position: absolute;
             top: 3.8%;
             right: 30px;
-            padding: 10px 24px;
-            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-actions button {
             border: none;
+            padding: 8px 14px;
+            font-size: 15px;
             cursor: pointer;
         }
-        .dropdown {
-            position: absolute;
-            top: 3.8%;
-            right: 30px;
-            padding: 10px 24px;
-            display: inline-block;
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            top: 40px;  /* Distance from the user icon button */
-            right: 30px;
-            width: 160px;
-            min-width: auto;
-            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);  /* Basically, black with 20% opacity */
-            z-index: 1;
-        }
-        .dropdown-content a {
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-        }
-        .dropdown:hover .dropdown-content {display: block;}
     </style>
     <!-- Title and listing CSS -->
     <style>
@@ -205,6 +187,23 @@ pub fn get_content() -> String {
             cursor: pointer;
             border-radius: 4px;
         }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 4px 0 12px;
+        }
+        .info-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eeeeee;
+            vertical-align: top;
+            word-break: break-all;
+        }
+        .info-table td:first-child {
+            color: #666666;
+            white-space: nowrap;
+            width: 130px;
+        }
         .toast {
             display: none;
             position: fixed;
@@ -223,6 +222,196 @@ pub fn get_content() -> String {
         .toast.success { background: #2e7d32; }
         .toast.error { background: #c62828; }
         .toast.info { background: #1565c0; }
+    </style>
+    <!-- Upload dialog CSS -->
+    <style>
+        .upload-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 998;
+        }
+        .upload-modal {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            width: 92%;
+            max-width: 440px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .upload-modal .close {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666666;
+        }
+        .upload-modal h3 {
+            margin: 0 0 4px;
+            text-align: center;
+            color: #000000;
+        }
+        .upload-modal p.sub {
+            margin: 0 0 14px;
+            text-align: center;
+            color: #666666;
+            font-size: 13px;
+        }
+        .drop-zone {
+            border: 1px dashed #999999;
+            border-radius: 8px;
+            padding: 22px 12px;
+            text-align: center;
+            color: #555555;
+            background: #fafafa;
+            cursor: pointer;
+        }
+        .drop-zone.drag-over {
+            background: #eeeeee;
+            border-color: #000000;
+        }
+        .drop-zone p {
+            margin: 8px 0 0;
+            font-size: 14px;
+            color: #555555;
+        }
+        .drop-zone input {
+            display: none;
+        }
+        .drop-zone .browse {
+            margin-top: 12px;
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            padding: 7px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .upload-list {
+            display: none;
+            margin: 14px 0 0;
+            padding: 0;
+            text-align: left;
+        }
+        .upload-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eeeeee;
+            font-size: 14px;
+            color: #000000;
+        }
+        .upload-list li img {
+            width: 24px;
+            height: 24px;
+        }
+        .upload-list li .name {
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            color: #000000;
+        }
+        .upload-list li .pct {
+            color: #666666;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .upload-list li .progress {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .upload-list li .progress span {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: #000000;
+            transition: width 0.3s;
+        }
+        .upload-list li svg.cross {
+            cursor: pointer;
+            fill: #666666;
+            flex-shrink: 0;
+        }
+        .night .modal {
+            background: #1e1e1e;
+        }
+        .night .modal h3,
+        .night .modal .file-name {
+            color: #f0f0f0 !important;
+        }
+        .night .modal select,
+        .night .modal input {
+            background: #2a2a2a;
+            color: #f0f0f0 !important;
+            border-color: #555555;
+        }
+        .night .modal-actions button {
+            color: #f0f0f0 !important;
+            border-color: #555555;
+        }
+        .night .info-table td {
+            border-color: #333333;
+        }
+        .night .info-table td:first-child {
+            color: #aaaaaa !important;
+        }
+        .night .upload-modal {
+            background: #1e1e1e;
+        }
+        .night .upload-modal h3,
+        .night .upload-modal .name {
+            color: #f0f0f0 !important;
+        }
+        .night .upload-modal p.sub,
+        .night .upload-modal .pct {
+            color: #aaaaaa !important;
+        }
+        .night .upload-modal .close {
+            color: #cccccc;
+        }
+        .night .drop-zone {
+            background: #2a2a2a;
+            border-color: #666666;
+        }
+        .night .drop-zone p,
+        .night .drop-zone {
+            color: #cccccc !important;
+        }
+        .night .drop-zone.drag-over {
+            background: #333333;
+            border-color: #f0f0f0;
+        }
+        .night .drop-zone .browse {
+            background: #f0f0f0;
+            color: #000000 !important;
+        }
+        .night .upload-list li {
+            border-color: #333333;
+            color: #f0f0f0 !important;
+        }
+        .night .upload-list li .progress {
+            background: #444444;
+        }
+        .night .upload-list li .progress span {
+            background: #f0f0f0;
+        }
     </style>
     <style>
         /* Style for context menu */
@@ -279,12 +468,9 @@ pub fn get_content() -> String {
         <button onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
         <button onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
     </div>
-    <div class="dropdown">
-        <button class="dropbtn"><i class="fa fa-user"></i></button>
-        <div class="dropdown-content">
-            <a onclick="goProfile()" style="cursor: pointer;"><i class="fa-solid fa-user-lock"></i> {{ user }}</a>
-            <a onclick="logOut()" style="cursor: pointer"><i class="fa fa-sign-out"></i> logout</a>
-        </div>
+    <div class="user-actions">
+        <button onclick="goProfile()"><i class="fa-solid fa-user"></i> {{ user }}</button>
+        <button onclick="logOut()"><i class="fa-solid fa-sign-out"></i> Logout</button>
     </div>
     <!-- Convert dialog (hidden by default) -->
     <div id="convertDialog" class="modal-overlay">
@@ -316,6 +502,31 @@ pub fn get_content() -> String {
             </div>
         </div>
     </div>
+    <!-- Info dialog (hidden by default) -->
+    <div id="infoDialog" class="modal-overlay">
+        <div class="modal">
+            <h3>File Info</h3>
+            <table class="info-table" id="infoContent"></table>
+            <div class="modal-actions">
+                <button onclick="closeInfoDialog()">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Upload dialog (hidden by default) -->
+    <div id="uploadModal" class="upload-overlay">
+        <div class="upload-modal">
+            <button class="close" onclick="closeUploadModal()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            <h3>Upload Files</h3>
+            <p class="sub">PDF, Images, Videos and Subtitles are allowed</p>
+            <div class="drop-zone" id="dropZone">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: #666666;"></i>
+                <p>Drag &amp; drop files here</p>
+                <button class="browse" type="button">Browse Files</button>
+                <input type="file" id="uploadInput" multiple>
+            </div>
+            <ul class="upload-list" id="uploadList"></ul>
+        </div>
+    </div>
     <!-- Toast notification (hidden by default) -->
     <div id="toast" class="toast"></div>
     <!-- Context menu template (hidden by default) -->
@@ -329,7 +540,7 @@ pub fn get_content() -> String {
         <h1>Welcome to RuStream <small>v{{ version }}</small></h1>
     {% endif %}
     <hr>
-    {% if dir_name or files or directories or secured_directories %}
+    {% if dir_name or files or directories %}
         <!-- Display directory name if within subdir -->
         {% if dir_name %}
             <h3>{{ dir_name }}</h3>
@@ -356,6 +567,7 @@ pub fn get_content() -> String {
                             <button onclick="downloadFile('{{ file.path }}')" title="Download"><i class="fa-solid fa-download"></i></button>
                             <button onclick="openRenameDialog('{{ file.path }}')" title="Rename"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="editItem('{{ file.path }}', 'delete')" title="Delete"><i class="fa-regular fa-trash-can"></i></button>
+                            <button onclick="showFileInfo('{{ file.path }}')" title="Info"><i class="fa-solid fa-circle-info"></i></button>
                         </div>
                     </li>
                 {% endfor %}
@@ -366,12 +578,6 @@ pub fn get_content() -> String {
             <h3>Directories {{ directories|length }}</h3>
             {% for directory in directories %}
                 <li><i class="{{ directory.font }}"></i>&nbsp;&nbsp;<a href="{{ directory.path }}">{{ directory.name }}</a></li>
-            {% endfor %}
-        {% endif %}
-        {% if secured_directories %}
-            <h3>Secured Directory</h3>
-            {% for directory in secured_directories %}
-                <li><i class="{{ directory.font }}"></i>&nbsp;&nbsp;<a oncontextmenu="showContextMenu(event, '{{ directory.path }}', true)" href="{{ directory.path }}">{{ directory.name }}</a></li>
             {% endfor %}
         {% endif %}
     {% else %}
@@ -391,10 +597,162 @@ pub fn get_content() -> String {
             window.location.href = prefixed("/logout");
         }
         function upload() {
-            window.location.href = prefixed("/upload");
+            openUploadModal();
         }
         function goBack() {
             window.history.back();
+        }
+    </script>
+    <script>
+        let uploadInput = document.getElementById('uploadInput');
+        let dropZone = document.getElementById('dropZone');
+        let uploadList = document.getElementById('uploadList');
+
+        let uploadsDone = 0;
+
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            if (uploadsDone > 0) {
+                window.location.reload();
+            }
+        }
+
+        // Check the file type
+        function typeValidation(type) {
+            let splitType = type.split('/')[0]
+            if (type === 'application/pdf' || type === 'text/vtt' || splitType === 'image' || splitType === 'video') {
+                return true
+            }
+        }
+
+        function handleUploadFiles(files) {
+            [...files].forEach((file) => {
+                if (typeValidation(file.type)) {
+                    uploadFile(file)
+                }
+            })
+        }
+
+        // upload file function
+        function uploadFile(file) {
+            let li = document.createElement('li')
+            li.innerHTML = `
+                <img src="https://thevickypedia.github.io/open-source/images/icons/${iconSelector(file.type)}" alt="">
+                <div style="flex: 1; min-width: 0;">
+                    <div class="name">${file.name}</div>
+                    <div class="progress"><span></span></div>
+                </div>
+                <span class="pct">0%</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="cross" height="18" width="18"><path d="m5.979 14.917-.854-.896 4-4.021-4-4.062.854-.896 4.042 4.062 4-4.062.854.896-4 4.062 4 4.021-.854.896-4-4.063Z"/></svg>
+            `
+            uploadList.style.display = 'block'
+            uploadList.prepend(li)
+            let http = new XMLHttpRequest()
+            let data = new FormData()
+            data.append('file', file)
+            http.onload = () => {
+                if (http.status === 200) {
+                    // Successful response from the server
+                    li.querySelector('.pct').innerHTML = 'Done'
+                    li.querySelector('.progress span').style.width = '100%'
+                    li.querySelector('.cross').remove()
+                    uploadsDone += 1
+                } else {
+                    // Handle error responses
+                    alert('Error uploading file. Status:' + http.status);
+                    return false;
+                }
+            }
+            http.onerror = (error) => {
+                // Handle network errors
+                console.log(error);
+                alert('Network error during file upload.');
+                return false;
+            };
+            http.upload.onprogress = (e) => {
+                let percent_complete = (e.loaded / e.total) * 100
+                li.querySelector('.pct').innerHTML = Math.round(percent_complete) + '%'
+                li.querySelector('.progress span').style.width = percent_complete + '%'
+            }
+            http.open('POST', window.location.origin + prefixed('/upload'), true);  // asynchronous session
+            http.send(data)
+            li.querySelector('.cross').onclick = () => http.abort()
+            http.onabort = () => {
+                li.querySelector('.pct').innerHTML = 'ABORTED';
+                li.querySelector('.cross').remove();
+            }
+        }
+
+        // find icon for file
+        function iconSelector(type) {
+            let splitType = (type.split('/')[0] === 'application') ? type.split('/')[1] : type.split('/')[0];
+            return splitType + '.png'
+        }
+
+        uploadInput.onchange = () => {
+            handleUploadFiles(uploadInput.files)
+            uploadInput.value = ''
+        }
+        dropZone.onclick = () => uploadInput.click()
+        dropZone.ondragover = (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        }
+        dropZone.ondragleave = () => dropZone.classList.remove('drag-over')
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over')
+            if (e.dataTransfer.files) {
+                handleUploadFiles(e.dataTransfer.files)
+            }
+        }
+    </script>
+    <script>
+        function showFileInfo(path) {
+            let filePath = path.replace(/^stream\//, '');
+            let http = new XMLHttpRequest();
+            http.open('GET', window.location.origin + prefixed('/info?file=') + encodeURIComponent(filePath), true);
+            http.onreadystatechange = function() {
+                if (http.readyState !== XMLHttpRequest.DONE) {
+                    return;
+                }
+                if (http.status === 200) {
+                    let info = JSON.parse(http.responseText);
+                    let rows = [
+                        ['Name', info.name],
+                        ['Path', info.path],
+                        ['Type', info.kind],
+                        ['Size', info.size],
+                        ['Format', info.format],
+                        ['Duration', info.duration],
+                        ['Created', info.created],
+                        ['Modified', info.modified],
+                        ['Permissions', info.permissions],
+                        ['Owner (UID:GID)', info.owner]
+                    ];
+                    let html = '';
+                    rows.forEach(function(row) {
+                        html += '<tr><td>' + row[0] + '</td><td>' + row[1] + '</td></tr>';
+                    });
+                    document.getElementById('infoContent').innerHTML = html;
+                    document.getElementById('infoDialog').style.display = 'flex';
+                } else {
+                    if (http.responseText !== "") {
+                        showToast(`Error: ${http.responseText}`, 'error');
+                    } else {
+                        showToast(`Error: ${http.statusText}`, 'error');
+                    }
+                }
+            };
+            http.send();
+        }
+
+        function closeInfoDialog() {
+            document.getElementById('infoDialog').style.display = 'none';
         }
     </script>
     <script>

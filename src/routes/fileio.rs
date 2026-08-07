@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use actix_web::{HttpRequest, HttpResponse, web};
-use actix_web::http::StatusCode;
 use fernet::Fernet;
 use serde::Deserialize;
 
@@ -85,9 +84,7 @@ fn extract_media_path(url_locator: &str, path_locator: &str, media_source: &Path
 /// * `payload` - JSON payload with `url_path` and `true_path` received from the UI.
 /// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
 /// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
-/// * `metadata` - Struct containing metadata of the application.
 /// * `config` - Configuration data for the application.
-/// * `template` - Configuration container for the loaded templates.
 ///
 /// # Returns
 ///
@@ -100,9 +97,7 @@ pub async fn edit(request: HttpRequest,
                   payload: web::Json<Payload>,
                   fernet: web::Data<Arc<Fernet>>,
                   session: web::Data<Arc<constant::Session>>,
-                  metadata: web::Data<Arc<constant::MetaData>>,
-                  config: web::Data<Arc<squire::settings::Config>>,
-                  template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
+                  config: web::Data<Arc<squire::settings::Config>>) -> HttpResponse {
     let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
     if !auth_response.ok {
         return routes::auth::failed_auth(auth_response, &config);
@@ -122,15 +117,6 @@ pub async fn edit(request: HttpRequest,
             return HttpResponse::BadRequest().body(msg);
         }
     };
-    if !squire::authenticator::verify_secure_index(&PathBuf::from(&media_path), &auth_response.username) {
-        return squire::custom::error(
-            "RESTRICTED SECTION",
-            template.get_template("error").unwrap(),
-            &metadata.pkg_version,
-            format!("This content is not accessible, as it does not belong to the user profile '{}'", auth_response.username),
-            StatusCode::FORBIDDEN
-        );
-    }
     if let Some(edit_action) = request.headers().get("edit-action") {
         let action = edit_action.to_str().unwrap();
         log::info!("{} requested to {} {:?}", auth_response.username, action, media_path);
@@ -278,9 +264,7 @@ fn delete(media_path: PathBuf) -> HttpResponse {
 /// * `payload` - JSON payload with `url_locator`, `path_locator` and `new_format` received from the UI.
 /// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
 /// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
-/// * `metadata` - Struct containing metadata of the application.
 /// * `config` - Configuration data for the application.
-/// * `template` - Configuration container for the loaded templates.
 /// * `jobs` - Tracker for the background conversion jobs.
 ///
 /// # Returns
@@ -295,9 +279,7 @@ pub async fn convert(request: HttpRequest,
                      payload: web::Json<ConvertPayload>,
                      fernet: web::Data<Arc<Fernet>>,
                      session: web::Data<Arc<constant::Session>>,
-                     metadata: web::Data<Arc<constant::MetaData>>,
                      config: web::Data<Arc<squire::settings::Config>>,
-                     template: web::Data<Arc<minijinja::Environment<'static>>>,
                      jobs: web::Data<Arc<JobTracker>>) -> HttpResponse {
     let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
     if !auth_response.ok {
@@ -317,15 +299,6 @@ pub async fn convert(request: HttpRequest,
         },
         _ => return HttpResponse::BadRequest().body("Both URL locator and path locator must be provided")
     };
-    if !squire::authenticator::verify_secure_index(&media_path, &auth_response.username) {
-        return squire::custom::error(
-            "RESTRICTED SECTION",
-            template.get_template("error").unwrap(),
-            &metadata.pkg_version,
-            format!("This content is not accessible, as it does not belong to the user profile '{}'", auth_response.username),
-            StatusCode::FORBIDDEN
-        );
-    }
     let target_format = match payload.new_format.as_deref() {
         Some(format) => format.trim(),
         None => return HttpResponse::BadRequest().body("New format is missing!")

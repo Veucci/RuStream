@@ -2,7 +2,6 @@ use std;
 use std::io::Write;
 
 use chrono::{DateTime, Local, Utc};
-use walkdir::WalkDir;
 
 use crate::{constant, squire};
 use crate::squire::settings;
@@ -364,69 +363,6 @@ fn get_time(utc: bool) -> String {
     }
 }
 
-/// Validates the directory structure to ensure that the secure index is present in media source's root.
-///
-/// # Arguments
-///
-/// * `config` - Configuration data for the application.
-/// * `metadata` - Struct containing metadata of the application.
-fn validate_dir_structure(config: &settings::Config, metadata: &constant::MetaData) {
-    let source = &config.media_source.to_string_lossy().to_string();
-    let mut errors = String::new();
-    for entry in WalkDir::new(&config.media_source).into_iter().filter_map(|e| e.ok()) {
-        let entry_path = entry.path();
-        if entry_path.is_dir() && entry_path.to_str().unwrap().ends_with(constant::SECURE_INDEX) {
-            let secure_index = entry_path.strip_prefix(source).unwrap();
-            let depth = secure_index.iter().count();
-            if depth != 1usize {
-                let index_vec = secure_index.iter().collect::<Vec<_>>();
-                let secure_dir = index_vec.last().unwrap();
-                // secure_parent_path is the secure index's location
-                let secure_parent_path = &index_vec[0..index_vec.len() - 1]
-                    .join(std::ffi::OsStr::new(std::path::MAIN_SEPARATOR_STR));
-                errors.push_str(&format!(
-                    "\n{:?}\n\tSecure index directory [{:?}] should be at the root [{:?}] [depth={}, valid=1]\n\
-                    \t> Hint: Either move {:?} within {:?}, [OR] set the 'media_source' to {:?}\n",
-                    secure_index,
-                    secure_dir,
-                    config.media_source,
-                    depth,
-                    secure_dir,
-                    config.media_source,
-                    config.media_source.join(secure_parent_path)
-                ));
-            }
-        }
-    }
-    if errors.is_empty() {
-        for username in config.authorization.keys() {
-            let secure_path = &config.media_source.join(format!("{}_{}", username, constant::SECURE_INDEX));
-            if !secure_path.exists() {
-                match std::fs::create_dir(secure_path) {
-                    Ok(_) => {
-                        // keep formatting similar to logging
-                        if config.utc_logging {
-                            println!("[{}\x1b[32m INFO\x1b[0m  {}] '{}' has been created",
-                                     get_time(config.utc_logging), metadata.crate_name,
-                                     secure_path.to_str().unwrap())
-                        } else {
-                            println!("[{} INFO  {}] '{}' has been created",
-                                     get_time(config.utc_logging), metadata.crate_name,
-                                     secure_path.to_str().unwrap())
-                        }
-                    }
-                    Err(err) => panic!(
-                        "'{}' could not be created: {}\n\tEnsure the media_source directory exists and is writable by the current user\n",
-                        secure_path.to_string_lossy(), err
-                    )
-                }
-            }
-        }
-    } else {
-        panic!("{}", errors)
-    }
-}
-
 /// Validates all the required environment variables with the required settings.
 ///
 /// # Arguments
@@ -500,7 +436,6 @@ fn validate_vars(metadata: &constant::MetaData) -> settings::Config {
     if !errors.is_empty() {
         panic!("{}", errors);
     }
-    validate_dir_structure(&config, metadata);
     config
 }
 

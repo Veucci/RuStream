@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::constant;
-use crate::squire::authenticator;
 use crate::squire::settings;
 
 /// Represents the payload structure for content, including files and directories.
@@ -22,9 +21,6 @@ pub struct ContentPayload {
     /// List of directories with their names, paths and font icons.
     #[serde(default = "default_structure")]
     pub directories: Vec<HashMap<String, String>>,
-    /// List of user specific directories with their names, paths and font icons.
-    #[serde(default = "default_structure")]
-    pub secured_directories: Vec<HashMap<String, String>>,
 }
 
 /// Returns the default structure for content, represented as an empty vector of HashMaps.
@@ -93,7 +89,7 @@ pub fn get_file_font(extn: &str) -> String {
 /// # Returns
 ///
 /// A string like `12.5 MB` or `1.2 GB`.
-fn format_size(bytes: u64) -> String {
+pub fn format_size(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut size = bytes as f64;
     let mut unit = 0;
@@ -117,7 +113,7 @@ fn format_size(bytes: u64) -> String {
 /// # Returns
 ///
 /// A string like `1:05:30` or `2:45`.
-fn format_duration(seconds: f64) -> String {
+pub fn format_duration(seconds: f64) -> String {
     let total = seconds.round() as u64;
     let hours = total / 3600;
     let minutes = (total % 3600) / 60;
@@ -130,8 +126,18 @@ fn format_duration(seconds: f64) -> String {
 }
 
 /// Returns whether the file extension belongs to a convertible video format.
-fn is_video(extension: &str) -> bool {
+pub fn is_video(extension: &str) -> bool {
     constant::VIDEO_FORMATS.contains(&extension.to_lowercase().as_str())
+}
+
+/// Checks if a file extension is allowed by the configured formats.
+///
+/// An empty list or a `*` entry disables filtering, making every file eligible.
+fn is_allowed_format(file_formats: &[String], extension: &str) -> bool {
+    if file_formats.is_empty() || file_formats.iter().any(|format| format == "*") {
+        return true;
+    }
+    file_formats.iter().any(|format| extension == format)
 }
 
 /// Builds the size and duration values for a media file.
@@ -176,20 +182,9 @@ fn file_details(server_path: &Path, ffmpeg_enabled: bool) -> (String, String) {
 /// # Returns
 ///
 /// A string with the `fa` value based on the folder depth.
-fn get_folder_font(path: &Path,
-                   parent: String,
-                   username: &String) -> HashMap<String, String> {
+fn get_folder_font(path: &Path, parent: String) -> HashMap<String, String> {
     let mut entry_map = HashMap::new();
     entry_map.insert("path".to_string(), format!("stream/{}", parent));
-    if path.to_string_lossy() == format!("{}_{}", username, constant::SECURE_INDEX) {
-        entry_map.insert("name".to_string(), parent);
-        entry_map.insert("font".to_string(), "fa-solid fa-lock".to_string());
-        entry_map.insert("secured".to_string(), "true".to_string());
-        return entry_map;
-    } else if path.to_string_lossy().ends_with(constant::SECURE_INDEX) {
-        // If the path has secure index value (includes folder trees / subdirectories)
-        return HashMap::new();
-    }
     entry_map.insert("name".to_string(), parent);
     if path.components().collect::<Vec<_>>().len() - 1 > 1 { // -1 for the file in path
         entry_map.insert("font".to_string(), "fa-solid fa-folder-tree".to_string());
@@ -208,7 +203,7 @@ fn get_folder_font(path: &Path,
 /// # Returns
 ///
 /// A `ContentPayload` struct representing the content of all streams.
-pub fn get_all_stream_content(config: &settings::Config, auth_response: &authenticator::AuthToken) -> ContentPayload {
+pub fn get_all_stream_content(config: &settings::Config) -> ContentPayload {
     let mut payload = ContentPayload::default();
     let mut redundant = Vec::new();
 
@@ -223,7 +218,7 @@ pub fn get_all_stream_content(config: &settings::Config, auth_response: &authent
             }
 
             if let Some(extension) = PathBuf::from(file_name).extension().and_then(|ext| ext.to_str()) {
-                if config.file_formats.iter().any(|format| extension == format) {
+                if is_allowed_format(&config.file_formats, extension) {
                     let path = entry.path().strip_prefix(&config.media_source)
                         .unwrap_or_else(|_| Path::new(""));
                     let components: &Vec<_> = &path.components().collect();
@@ -246,14 +241,9 @@ pub fn get_all_stream_content(config: &settings::Config, auth_response: &authent
                             continue
                         }
                         redundant.push(parent.clone());
-                        let entry_map = get_folder_font(path, parent, &auth_response.username);
-                        if entry_map.get("secured").unwrap_or(&"".to_string()) == "true" {
-                            if payload.secured_directories.contains(&entry_map) || entry_map.is_empty() { continue; }
-                            payload.secured_directories.push(entry_map);
-                        } else {
-                            if payload.directories.contains(&entry_map) || entry_map.is_empty() { continue; }
-                            payload.directories.push(entry_map);
-                        }
+                        let entry_map = get_folder_font(path, parent);
+                        if payload.directories.contains(&entry_map) || entry_map.is_empty() { continue; }
+                        payload.directories.push(entry_map);
                     }
                 }
             }
@@ -299,7 +289,7 @@ pub fn get_dir_stream_content(path_payload: &String,
             .to_string_lossy().to_string();
         if server_path.is_file() {
             let file_extn = &server_path.extension().unwrap_or_default().to_string_lossy().to_string();
-            if file_formats.contains(file_extn) {
+            if is_allowed_format(file_formats, file_extn) {
                 let (size, duration) = file_details(&server_path, ffmpeg_enabled);
                 let map = HashMap::from([
                     ("name".to_string(), entry_name),
@@ -312,15 +302,10 @@ pub fn get_dir_stream_content(path_payload: &String,
                 files.push(map);
             }
         } else if server_path.is_dir() {
-            let dir_font = if server_path.to_string_lossy().contains(constant::SECURE_INDEX) {
-                "fa-solid fa-lock".to_string()
-            } else {
-                "fa-solid fa-folder-tree".to_string()
-            };
             let map = HashMap::from([
                 ("name".to_string(), entry_name),
                 ("path".to_string(), client_path),
-                ("font".to_string(), dir_font)
+                ("font".to_string(), "fa-solid fa-folder-tree".to_string())
             ]);
             directories.push(map);
         } else {
@@ -332,7 +317,6 @@ pub fn get_dir_stream_content(path_payload: &String,
     let re = Regex::new(r"(\D+|\d+)").unwrap();
     files.sort_by_key(|a| natural_sort_key(&re, a.get("name").unwrap()));
     directories.sort_by_key(|a| natural_sort_key(&re, a.get("name").unwrap()));
-    // secure indices will be placed in root of media_source, so it's not required for subdirectories
     ContentPayload { files, directories, ..Default::default() }
 }
 
@@ -363,7 +347,7 @@ pub fn get_iter(filepath: &Path, file_formats: &[String]) -> Iter {
         .filter_map(|entry| {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let file_extn = Path::new(&file_name).extension().unwrap_or_default().to_string_lossy().to_string();
-            if file_formats.contains(&file_extn) {
+            if is_allowed_format(file_formats, &file_extn) {
                 Some(file_name)
             } else {
                 None

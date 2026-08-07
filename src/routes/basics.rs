@@ -91,11 +91,7 @@ pub async fn profile(request: HttpRequest,
         let extn = filepath.extension().unwrap().to_str().unwrap();
         let name = filepath.iter().next_back().unwrap().to_string_lossy().to_string();
         let path = routes::join_path(&config.base_url, &format!("/stream/{}", last_accessed));
-        let font = if last_accessed.contains(constant::SECURE_INDEX) {
-            "fa-solid fa-lock".to_string()
-        } else {
-            squire::content::get_file_font(extn)
-        };
+        let font = squire::content::get_file_font(extn);
         access_map = HashMap::from([
             ("name", name), ("font", font), ("path", path)
         ]);

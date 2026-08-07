@@ -70,7 +70,7 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
 - **media_port**: Port number to host the application. Defaults to `8000`
 - **base_url**: URL path prefix under which the application is served, e.g. `/rustream`. Defaults to `/`
 - **session_duration**: Time _(in seconds)_ each authenticated session should last. Defaults to `3600`
-- **file_formats**: Vector of supported file formats. Defaults to `[mp4, mov, jpg, jpeg]`
+- **file_formats**: Vector of supported file formats. Defaults to `["*"]` (every file is listed)
 - **workers**: Number of workers to spin up for the server. Defaults to the number of physical cores.
 - **max_connections**: Maximum number of concurrent connections per worker. Defaults to `3`
 - **max_payload_size**: Maximum size of files that can be uploaded from the UI. Defaults to `100 MB`
