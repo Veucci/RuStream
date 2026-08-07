@@ -15,6 +15,7 @@ FROM alpine:3.22
 WORKDIR /app
 
 RUN addgroup -S rustream && adduser -S rustream -G rustream \
+    && apk add --no-cache ffmpeg \
     && mkdir -p /data/media \
     && chown -R rustream:rustream /data/media
 

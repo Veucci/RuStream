@@ -84,6 +84,87 @@ pub fn get_file_font(extn: &str) -> String {
     font.to_string()
 }
 
+/// Formats a byte count into a human readable string.
+///
+/// # Arguments
+///
+/// * `bytes` - Size of the file in bytes.
+///
+/// # Returns
+///
+/// A string like `12.5 MB` or `1.2 GB`.
+fn format_size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut unit = 0;
+    while size >= 1024.0 && unit < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{} {}", size as u64, UNITS[unit])
+    } else {
+        format!("{:.2} {}", size, UNITS[unit])
+    }
+}
+
+/// Formats seconds into a human readable duration string.
+///
+/// # Arguments
+///
+/// * `seconds` - Duration of the media file in seconds.
+///
+/// # Returns
+///
+/// A string like `1:05:30` or `2:45`.
+fn format_duration(seconds: f64) -> String {
+    let total = seconds.round() as u64;
+    let hours = total / 3600;
+    let minutes = (total % 3600) / 60;
+    let secs = total % 60;
+    if hours > 0 {
+        format!("{}:{:02}:{:02}", hours, minutes, secs)
+    } else {
+        format!("{}:{:02}", minutes, secs)
+    }
+}
+
+/// Returns whether the file extension belongs to a convertible video format.
+fn is_video(extension: &str) -> bool {
+    constant::VIDEO_FORMATS.contains(&extension.to_lowercase().as_str())
+}
+
+/// Builds the size and duration values for a media file.
+///
+/// Duration is probed on-demand only for video files and only when ffmpeg
+/// support is enabled, otherwise it stays empty.
+///
+/// # Arguments
+///
+/// * `server_path` - Path of the file on the server.
+/// * `ffmpeg_enabled` - Whether on-demand ffmpeg conversion is allowed.
+///
+/// # Returns
+///
+/// A tuple of `(size, duration)` as formatted strings.
+fn file_details(server_path: &Path, ffmpeg_enabled: bool) -> (String, String) {
+    let size = match std::fs::metadata(server_path) {
+        Ok(metadata) => format_size(metadata.len()),
+        Err(_) => String::new(),
+    };
+    let extension = server_path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+    let mut duration = String::new();
+    if ffmpeg_enabled && is_video(&extension) {
+        if let Some(seconds) = crate::squire::ffmpeg::get_duration(server_path) {
+            duration = format_duration(seconds);
+        }
+    }
+    (size, duration)
+}
+
 /// Generate font awesome icon's value for a given folder depth.
 ///
 /// Creates custom icons for `folder-tree`, defaults to `folder` icon.
@@ -151,6 +232,10 @@ pub fn get_all_stream_content(config: &settings::Config, auth_response: &authent
                         entry_map.insert("path".to_string(), format!("stream/{}", file_name));
                         entry_map.insert("name".to_string(), file_name.to_string());
                         entry_map.insert("font".to_string(), get_file_font(extension));
+                        entry_map.insert("video".to_string(), is_video(extension).to_string());
+                        let (size, duration) = file_details(entry.path(), config.ffmpeg_enabled);
+                        entry_map.insert("size".to_string(), size);
+                        entry_map.insert("duration".to_string(), duration);
                         payload.files.push(entry_map);
                     } else {
                         let parent = path.components().collect::<Vec<_>>()
@@ -195,7 +280,8 @@ pub fn get_all_stream_content(config: &settings::Config, auth_response: &authent
 /// A `ContentPayload` struct representing the content of the specified directory.
 pub fn get_dir_stream_content(path_payload: &String,
                               parent: &str,
-                              file_formats: &[String]) -> ContentPayload {
+                              file_formats: &[String],
+                              ffmpeg_enabled: bool) -> ContentPayload {
     // todo: subdirectories are not checked for media files, perhaps this is a bad idea
     let mut files = Vec::new();
     let mut directories = Vec::new();
@@ -214,10 +300,14 @@ pub fn get_dir_stream_content(path_payload: &String,
         if server_path.is_file() {
             let file_extn = &server_path.extension().unwrap_or_default().to_string_lossy().to_string();
             if file_formats.contains(file_extn) {
+                let (size, duration) = file_details(&server_path, ffmpeg_enabled);
                 let map = HashMap::from([
                     ("name".to_string(), entry_name),
                     ("path".to_string(), client_path),
-                    ("font".to_string(), get_file_font(file_extn))
+                    ("font".to_string(), get_file_font(file_extn)),
+                    ("video".to_string(), is_video(file_extn).to_string()),
+                    ("size".to_string(), size),
+                    ("duration".to_string(), duration)
                 ]);
                 files.push(map);
             }

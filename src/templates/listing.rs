@@ -28,7 +28,7 @@ pub fn get_content() -> String {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
     <script type="text/javascript" src="https://thevickypedia.github.io/open-source/nightmode/night.js" defer></script>
     <link rel="stylesheet" type="text/css" href="https://thevickypedia.github.io/open-source/nightmode/night.css">
-    <!-- Button CSS -->
+    <!-- Navbar CSS -->
     <style>
         /* Google fonts with a backup alternative */
         @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap');
@@ -42,31 +42,17 @@ pub fn get_content() -> String {
         small {
             font-size: 16px;
         }
-        .upload {
-            position: absolute;
-            top: 3.8%;
-            right: 313px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
+        .navbar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0.5% 0 1.5%;
         }
-        .home {
-            position: absolute;
-            top: 3.8%;
-            right: 217px;
+        .navbar button {
             border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .back {
-            position: absolute;
-            top: 3.8%;
-            right: 132px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
+            padding: 8px 14px;
+            font-size: 15px;
             cursor: pointer;
         }
     </style>
@@ -104,30 +90,139 @@ pub fn get_content() -> String {
         }
         .dropdown:hover .dropdown-content {display: block;}
     </style>
-    <!-- Title list CSS -->
+    <!-- Title and listing CSS -->
     <style>
         a:hover, a:active { font-size: 102%; opacity: 0.5; }
         a:link { color: blue; }
         a:visited { color: blue; }
         ol {
             list-style: none;
-            counter-reset: list-counter;
+            padding-left: 0;
         }
         li {
-            margin: 1rem;
+            margin: 0.6rem 0;
             list-style-type: none; /* Hide default marker */
         }
-        li::before {
-            background: #4169E1;
-            width: 2rem;
-            height: 2rem;
-            border-radius: 50%;
-            display: inline-block;
-            line-height: 2rem;
-            color: white;
-            text-align: center;
-            margin-right: 0.5rem;
+        .file-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 0.4rem 0.6rem;
         }
+        .file-row:hover {
+            background: rgba(65, 105, 225, 0.08);
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+        .file-info a {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-meta {
+            color: #888888;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .file-actions button {
+            border: 1px solid #cccccc;
+            background: transparent;
+            padding: 4px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+    </style>
+    <!-- Convert dialog and toast CSS -->
+    <style>
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .modal {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            min-width: 320px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+        .modal h3 {
+            margin: 0 0 8px;
+        }
+        .modal .file-name {
+            color: #555555;
+            margin: 0 0 12px;
+            word-break: break-all;
+        }
+        .modal select {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0 16px;
+            font-size: 15px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0 16px;
+            font-size: 15px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .modal-actions button {
+            border: 1px solid #cccccc;
+            background: transparent;
+            padding: 6px 14px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .toast {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 15px;
+            max-width: 90%;
+            word-break: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+        .toast.info { background: #1565c0; }
     </style>
     <style>
         /* Style for context menu */
@@ -179,9 +274,11 @@ pub fn get_content() -> String {
 </noscript>
 <body translate="no">
     <div class="toggler fa fa-moon-o"></div>
-    <button class="upload" onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
-    <button class="home" onclick="goHome()"><i class="fa fa-home"></i> Home</button>
-    <button class="back" onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+    <div class="navbar">
+        <button onclick="goHome()"><i class="fa fa-home"></i> Home</button>
+        <button onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+        <button onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+    </div>
     <div class="dropdown">
         <button class="dropbtn"><i class="fa fa-user"></i></button>
         <div class="dropdown-content">
@@ -189,11 +286,42 @@ pub fn get_content() -> String {
             <a onclick="logOut()" style="cursor: pointer"><i class="fa fa-sign-out"></i> logout</a>
         </div>
     </div>
-    <br><br><br><br>
+    <!-- Convert dialog (hidden by default) -->
+    <div id="convertDialog" class="modal-overlay">
+        <div class="modal">
+            <h3>Convert video</h3>
+            <p class="file-name" id="convertFileName"></p>
+            <label for="convertFormat">Convert to:</label>
+            <select id="convertFormat">
+                {% for format in video_formats %}
+                    <option value="{{ format }}">{{ format }}</option>
+                {% endfor %}
+            </select>
+            <div class="modal-actions">
+                <button onclick="startConversion()"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
+                <button onclick="closeConvertDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <!-- Rename dialog (hidden by default) -->
+    <div id="renameDialog" class="modal-overlay">
+        <div class="modal">
+            <h3>Rename file</h3>
+            <label for="renameInput">New file name:</label>
+            <input type="text" id="renameInput" spellcheck="false"
+                   onkeydown="if (event.key === 'Enter') submitRename(); if (event.key === 'Escape') closeRenameDialog();">
+            <div class="modal-actions">
+                <button onclick="submitRename()"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Save</button>
+                <button onclick="closeRenameDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <!-- Toast notification (hidden by default) -->
+    <div id="toast" class="toast"></div>
     <!-- Context menu template (hidden by default) -->
     <div id="contextMenu" class="context-menu icon" style="display: none;">
         <div class="context-menu-item" onclick="editItem(currentPath, 'delete')"><i class="fa-regular fa-trash-can"></i>&nbsp;&nbsp;Delete</div>
-        <div class="context-menu-item" onclick="editItem(currentPath, 'rename')"><i class="fa-solid fa-pen"></i></i>&nbsp;&nbsp;Rename</div>
+        <div class="context-menu-item" onclick="openRenameDialog(currentPath)"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Rename</div>
     </div>
     {% if custom_title %}
         <h1>{{ custom_title }}</h1>
@@ -209,13 +337,29 @@ pub fn get_content() -> String {
         <!-- Display number of files and list the files -->
         {% if files %}
             <h3>Files {{ files|length }}</h3>
-            {% for file in files %}
-                {% if secure_path == 'true' %}
-                    <li><i class="{{ file.font }}"></i>&nbsp;&nbsp;<a oncontextmenu="showContextMenu(event, '{{ file.path }}')" href="{{ file.path }}">{{ file.name }}</a></li>
-                {% else %}
-                    <li><i class="{{ file.font }}"></i>&nbsp;&nbsp;<a href="{{ file.path }}">{{ file.name }}</a></li>
-                {% endif %}
-            {% endfor %}
+            <ol>
+                {% for file in files %}
+                    <li class="file-row">
+                        <div class="file-info">
+                            <i class="{{ file.font }}"></i>&nbsp;&nbsp;<a href="{{ file.path }}">{{ file.name }}</a>
+                            {% if file.size or file.duration %}
+                                <span class="file-meta">
+                                    {% if file.size %}{{ file.size }}{% endif %}
+                                    {% if file.duration %} &middot; {{ file.duration }}{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="file-actions">
+                            {% if ffmpeg_enabled and file.video == 'true' %}
+                                <button onclick="openConvertDialog('{{ file.path }}')" title="Convert format"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
+                            {% endif %}
+                            <button onclick="downloadFile('{{ file.path }}')" title="Download"><i class="fa-solid fa-download"></i></button>
+                            <button onclick="openRenameDialog('{{ file.path }}')" title="Rename"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="editItem('{{ file.path }}', 'delete')" title="Delete"><i class="fa-regular fa-trash-can"></i></button>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
         {% endif %}
         <!-- Display number of directories and list the directories -->
         {% if directories %}
@@ -251,6 +395,148 @@ pub fn get_content() -> String {
         }
         function goBack() {
             window.history.back();
+        }
+    </script>
+    <script>
+        function downloadFile(path) {
+            let filePath = path.replace(/^stream\//, '');
+            window.location.href = window.location.origin + prefixed('/download?file=') + encodeURIComponent(filePath);
+        }
+
+        const VIDEO_FORMATS = [{% for format in video_formats %}'{{ format }}',{% endfor %}];
+
+        let convertTargetPath = null;
+        let convertTimer = null;
+
+        function showToast(message, type) {
+            let toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || 'info');
+            toast.style.display = 'block';
+            clearTimeout(convertTimer);
+            convertTimer = setTimeout(function() {
+                toast.style.display = 'none';
+            }, 5000);
+        }
+
+        function openConvertDialog(path) {
+            let fileName = extractFileName(path);
+            let currentFormat = fileName.split('.').pop().toLowerCase();
+            let select = document.getElementById('convertFormat');
+            select.innerHTML = '';
+            VIDEO_FORMATS.forEach(function(format) {
+                if (format === currentFormat) {
+                    return;
+                }
+                let option = document.createElement('option');
+                option.value = format;
+                option.text = format;
+                select.appendChild(option);
+            });
+            if (select.options.length === 0) {
+                showToast(`No other format is available for '${currentFormat}'`, 'error');
+                return;
+            }
+            convertTargetPath = path;
+            document.getElementById('convertFileName').innerText = fileName;
+            document.getElementById('convertDialog').style.display = 'flex';
+        }
+
+        function closeConvertDialog() {
+            document.getElementById('convertDialog').style.display = 'none';
+        }
+
+        function startConversion() {
+            let format = document.getElementById('convertFormat').value;
+            if (!format || convertTargetPath === null) {
+                return;
+            }
+            closeConvertDialog();
+            let fileName = extractFileName(convertTargetPath);
+            let trueURL = window.location.href + '/' + fileName;
+            let http = new XMLHttpRequest();
+            http.open('POST', window.location.origin + prefixed('/convert'), true);
+            http.setRequestHeader('Content-Type', 'application/json');
+            http.onreadystatechange = function() {
+                if (http.readyState === XMLHttpRequest.DONE) {
+                    if (http.status === 202) {
+                        let response = JSON.parse(http.responseText);
+                        showToast(`Converting '${fileName}' to ${format}...`, 'info');
+                        pollConversion(response.job, fileName, format);
+                    } else {
+                        if (http.responseText !== "") {
+                            showToast(`Error: ${http.responseText}`, 'error');
+                        } else {
+                            showToast(`Error: ${http.statusText}`, 'error');
+                        }
+                    }
+                }
+            };
+            http.send(JSON.stringify({
+                url_locator: trueURL,
+                path_locator: convertTargetPath,
+                new_format: format
+            }));
+        }
+
+        let renameTargetPath = null;
+
+        function pollConversion(jobId, fileName, format) {
+            let poll = setInterval(function() {
+                let status = new XMLHttpRequest();
+                status.open('GET', window.location.origin + prefixed('/convert/status/') + jobId, true);
+                status.onreadystatechange = function() {
+                    if (status.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    if (status.status === 200) {
+                        let job = JSON.parse(status.responseText);
+                        if (job.state === 'running') {
+                            return;
+                        }
+                        clearInterval(poll);
+                        if (job.state === 'done') {
+                            showToast(`'${fileName}' was converted to ${format} successfully`, 'success');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            showToast(`Conversion failed: ${job.detail}`, 'error');
+                        }
+                    } else {
+                        clearInterval(poll);
+                        showToast('Failed to fetch conversion status', 'error');
+                    }
+                };
+                status.send();
+            }, 1500);
+        }
+
+        function openRenameDialog(path) {
+            renameTargetPath = path;
+            let input = document.getElementById('renameInput');
+            input.value = extractFileName(path);
+            document.getElementById('renameDialog').style.display = 'flex';
+            input.focus();
+            input.select();
+        }
+
+        function closeRenameDialog() {
+            document.getElementById('renameDialog').style.display = 'none';
+        }
+
+        function submitRename() {
+            if (renameTargetPath === null) {
+                return;
+            }
+            let newName = document.getElementById('renameInput').value;
+            let fileName = extractFileName(renameTargetPath);
+            if (!isValidName(fileName, newName)) {
+                return;
+            }
+            closeRenameDialog();
+            let trueURL = window.location.href + '/' + fileName;
+            editAction('rename', trueURL, renameTargetPath, newName);
         }
     </script>
     <script>
@@ -295,9 +581,9 @@ pub fn get_content() -> String {
                         window.location.reload();
                     } else {
                         if (http.responseText !== "") {
-                            alert(`Error: ${http.responseText}`);
+                            showToast(`Error: ${http.responseText}`, 'error');
                         } else {
-                            alert(`Error: ${http.statusText}`);
+                            showToast(`Error: ${http.statusText}`, 'error');
                         }
                     }
                 }
@@ -330,25 +616,19 @@ pub fn get_content() -> String {
         function isValidName(oldName, newName) {
             // Condition 1 - Validate if the new filename is the same as old.
             if (oldName === newName) {
-                alert(`New name is the same as old\n\n'${oldName}'=='${newName}'`);
+                showToast(`New name is the same as old: '${oldName}'`, 'error');
+                return false;
             }
             // Condition 2 - Validate if the new filename starts or ends with . or _
             if (newName.startsWith('_') || newName.endsWith('_') ||
                 newName.startsWith('.') || newName.endsWith('.')) {
-                alert(`New name cannot start or end with '.' or '_'\n\n${newName}`);
+                showToast(`New name cannot start or end with '.' or '_'`, 'error');
                 return false;
             }
-            // Condition 3 - Validate if the new filename and the old has the same file extension.
-            const oldExtension = oldName.split('.').pop();
+            // Condition 3 - Validate if the new filename has at least one character, apart from the file extension.
             const newExtension = newName.split('.').pop();
-            // Check condition 3
-            if (oldExtension !== newExtension) {
-                alert(`File extension cannot be changed\n\n'${newExtension}' => '${oldExtension}'`);
-                return false;
-            }
-            // Condition 4 - Validate if the new filename has at least one character, apart from the file extension.
-            if (newName.length <= oldExtension.length + 1) {
-                alert(`At least one character is required as filename\n\nReceived ${newName.length}`);
+            if (newName.length <= newExtension.length + 1) {
+                showToast('At least one character is required as filename', 'error');
                 return false;
             }
             return true;

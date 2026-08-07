@@ -81,12 +81,16 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
 - **secure_session**: Boolean flag to secure the cookie `session_token`. Defaults to `false`
   > If `secure_session` is to set to `true`, the cookie `session_token` will only be sent via HTTPS<br>
   > This means that the server can **ONLY** be hosted via `HTTPS` or `localhost`
+- **ffmpeg_enabled**: Boolean flag to enable on-demand video conversion with ffmpeg. Defaults to `false`
+  > ffmpeg is invoked **only** when a conversion is requested, it does not run in the background<br>
+  > Converted files are written next to the originals, the originals are never modified or removed<br>
+  > Requires `ffmpeg`/`ffprobe` binaries, bundled in the Docker image
 
 > Checkout `.env.example` for a sample of all environment variables and `dotenv` usage.
 
 ### Docker
 
-A multi-stage `Dockerfile` is included, the final image contains only the release binary.
+A multi-stage `Dockerfile` is included, the final image contains only the release binary and ffmpeg.
 
 ```shell
 cp .env.example .env
@@ -95,6 +99,8 @@ docker compose up -d --build
 ```
 
 The container listens on port `8000`, the port can be changed by setting `media_port` in `.env`. Media files are served from the `media/` directory, mounted to `/data/media` inside the container, so `media_source` in `.env` must be set to `/data/media`.
+
+> The container runs as the host user (`UID`/`GID` from `.env`) so that files in the bind-mounted `media/` folder stay readable/writable. Set `UID` and `GID` to the user that owns the `media/` folder on the host (`id -u` and `id -g`).
 
 Images are published to GHCR, tagged `stable` for `main` branch builds and `beta` for `dev` branch builds.
 

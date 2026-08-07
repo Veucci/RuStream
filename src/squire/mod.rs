@@ -10,6 +10,8 @@ pub mod custom;
 pub mod middleware;
 /// Module for the function that converts the subtitles from `srt` to `vtt` file format.
 pub mod subtitles;
+/// Module for on-demand media conversion using ffmpeg.
+pub mod ffmpeg;
 /// Module for the functions that scans the source and renders the filenames as a struct.
 pub mod content;
 /// Module that handles the authentication and
