@@ -132,10 +132,10 @@ Licensed under the [MIT License][license]
 
 [repo]: https://github.com/Veucci/RuStream
 [license]: https://github.com/Veucci/RuStream/blob/main/LICENSE
-[build]: https://github.com/Veucci/RuStream/actions/workflows/rust.yml
+[build]: https://github.com/Veucci/RuStream/actions/workflows/ci.yml
 [rust-src-page]: https://www.rust-lang.org/
 [rust-logo]: https://img.shields.io/badge/Made%20with-Rust-black?style=for-the-badge&logo=Rust
-[gh-logo]: https://github.com/Veucci/RuStream/actions/workflows/rust.yml/badge.svg
+[gh-logo]: https://github.com/Veucci/RuStream/actions/workflows/ci.yml/badge.svg
 [docker-logo]: https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=Docker&logoColor=white
 [ghcr]: https://github.com/users/Veucci/packages/container/package/rustream
 [crate]: https://crates.io/crates/RuStream
