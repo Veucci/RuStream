@@ -97,6 +97,13 @@ docker compose up -d --build
 
 The container listens on port `8000`, the port can be changed by setting `media_port` in `.env`. Media files are served from the `media/` directory, mounted to `/data/media` inside the container, so `media_source` in `.env` must be set to `/data/media`.
 
+Images are published to GHCR, tagged `stable` for `main` branch builds and `beta` for `dev` branch builds.
+
+```shell
+docker pull ghcr.io/veucci/rustream:stable
+docker pull ghcr.io/veucci/rustream:beta
+```
+
 ## Crate
 [https://crates.io/crates/RuStream][crate]
 
