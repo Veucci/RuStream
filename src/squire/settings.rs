@@ -49,6 +49,14 @@ pub fn default_utc_logging() -> bool { true }
 /// Returns the default value for SSL files.
 pub fn default_ssl() -> path::PathBuf { path::PathBuf::new() }
 
+pub fn default_authorization() -> HashMap<String, String> {
+    HashMap::from([("user".to_string(), "SuperSecurePass".to_string())])
+}
+
+pub fn default_media_source() -> path::PathBuf {
+    path::PathBuf::from("/data/media")
+}
+
 /// Returns the default media host based on the local machine's IP address.
 pub fn default_media_host() -> String {
     let hostname = "localhost";

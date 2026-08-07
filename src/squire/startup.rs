@@ -55,32 +55,22 @@ pub fn init_logger(debug: bool, utc: bool, crate_name: &String) {
 ///
 /// If the value is missing or if there is an error parsing the `HashMap`
 fn mandatory_vars() -> (std::collections::HashMap<String, String>, std::path::PathBuf) {
-    let authorization_str = match std::env::var("authorization") {
-        Ok(val) => val,
-        Err(_) => {
-            panic!(
-                "\nauthorization\n\texpected a HashMap, received null [value=missing]\n",
-            );
-        }
-    };
-    let authorization: std::collections::HashMap<String, String> =
-        match serde_json::from_str(&authorization_str) {
-            Ok(val) => val,
+    let authorization = match std::env::var("authorization") {
+        Ok(val) => match serde_json::from_str::<std::collections::HashMap<String, String>>(&val) {
+            Ok(parsed) => parsed,
             Err(_) => {
                 panic!(
                     "\nauthorization\n\terror parsing JSON [value=invalid]\n",
                 );
             }
-        };
-    let media_source_str = match std::env::var("media_source") {
-        Ok(val) => val,
-        Err(_) => {
-            panic!(
-                "\nmedia_source\n\texpected a directory path, received null [value=missing]\n",
-            );
-        }
+        },
+        Err(_) => settings::default_authorization(),
     };
-    (authorization, std::path::PathBuf::from(media_source_str))
+    let media_source = match std::env::var("media_source") {
+        Ok(val) => std::path::PathBuf::from(val),
+        Err(_) => settings::default_media_source(),
+    };
+    (authorization, media_source)
 }
 
 /// Extracts the env var by key and parses it as a `bool`
@@ -423,15 +413,50 @@ fn validate_dir_structure(config: &settings::Config, metadata: &constant::MetaDa
 /// # Returns
 ///
 /// Returns the `Config` struct containing the required parameters.
+fn warn_default(key: &str, detail: &str, utc: bool, crate_name: &String) {
+    if utc {
+        println!("[{}\x1b[33m WARN\x1b[0m  {}] '{}' was not provided, {}", get_time(utc), crate_name, key, detail)
+    } else {
+        println!("[{} WARN  {}] '{}' was not provided, {}", get_time(utc), crate_name, key, detail)
+    }
+}
+
 fn validate_vars(metadata: &constant::MetaData) -> settings::Config {
     let config = load_env_vars();
+    let authorization_provided = std::env::var("authorization").is_ok();
+    let media_source_provided = std::env::var("media_source").is_ok();
+    if !authorization_provided {
+        warn_default("authorization", "using default credentials", config.utc_logging, &metadata.crate_name);
+    }
+    if !media_source_provided {
+        warn_default("media_source", "using the default directory", config.utc_logging, &metadata.crate_name);
+    }
     let mut errors = "".to_owned();
     if !config.media_source.exists() || !config.media_source.is_dir() {
-        let err1 = format!(
-            "\nmedia_source\n\tInput [{}] is not a valid directory [value=invalid]\n",
-            config.media_source.to_string_lossy()
-        );
-        errors.push_str(&err1);
+        if !media_source_provided {
+            match std::fs::create_dir_all(&config.media_source) {
+                Ok(_) => {
+                    if config.utc_logging {
+                        println!("[{}\x1b[32m INFO\x1b[0m  {}] '{}' has been created",
+                                 get_time(config.utc_logging), metadata.crate_name,
+                                 config.media_source.to_string_lossy())
+                    } else {
+                        println!("[{} INFO  {}] '{}' has been created",
+                                 get_time(config.utc_logging), metadata.crate_name,
+                                 config.media_source.to_string_lossy())
+                    }
+                }
+                Err(err) => errors.push_str(&format!(
+                    "\nmedia_source\n\tUnable to create the default directory [{}]: {} [value=invalid]\n",
+                    config.media_source.to_string_lossy(), err
+                )),
+            }
+        } else {
+            errors.push_str(&format!(
+                "\nmedia_source\n\tInput [{}] is not a valid directory [value=invalid]\n",
+                config.media_source.to_string_lossy()
+            ));
+        }
     }
     for (username, password) in &config.authorization {
         if username.len() < 4 {

@@ -60,12 +60,10 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
 
 #### Environment Variables
 
-**Mandatory**
-- **authorization**: Dictionary of key-value pairs with `username` as key and `password` as value.
-- **media_source**: Source path for the files to be streamed.
-  > Files starting/ending with `_` _(underscore)_ and `.` _(dot)_ will be ignored
-
 **Optional**
+- **authorization**: Dictionary of key-value pairs with `username` as key and `password` as value. Defaults to `{"user": "SuperSecurePass"}` when not provided, a warning is logged on startup.
+- **media_source**: Source path for the files to be streamed. Defaults to `/data/media` when not provided, the directory is created if missing and a warning is logged on startup.
+  > Files starting/ending with `_` _(underscore)_ and `.` _(dot)_ will be ignored
 - **debug**: Boolean flag to enable debug level logging. Defaults to `false`
 - **utc_logging**: Boolean flag to set timezone to UTC in the output logs. Defaults to `true`
 - **media_host**: IP address to host the server. Defaults to `127.0.0.1` / `localhost`
