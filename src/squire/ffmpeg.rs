@@ -66,7 +66,46 @@ fn validate_format(current_format: &str, target_format: &str) -> Result<String, 
     Ok(target)
 }
 
+/// Runs ffmpeg against the given input and output path with extra arguments.
+///
+/// # Arguments
+///
+/// * `filepath` - Path to the input media file.
+/// * `output_path` - Path to write the converted file.
+/// * `extra_args` - Additional ffmpeg arguments inserted between the input and output.
+///
+/// # Returns
+///
+/// * `Ok(())` - If ffmpeg finished successfully.
+/// * `Err(String)` - ffmpeg stderr, or a reason when ffmpeg could not be invoked.
+fn run_ffmpeg(filepath: &Path, output_path: &Path, extra_args: &[&str]) -> Result<(), String> {
+    let output = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(filepath)
+        .args(extra_args)
+        .arg(output_path)
+        .output();
+    match output {
+        Ok(result) if result.status.success() => Ok(()),
+        Ok(result) => {
+            let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
+            if stderr.is_empty() {
+                Err(format!("ffmpeg exited with status '{}'", result.status))
+            } else {
+                Err(stderr)
+            }
+        }
+        Err(error) => Err(format!("Unable to invoke ffmpeg: {}", error)),
+    }
+}
+
 /// Converts a media file to the requested format using `ffmpeg`.
+///
+/// A stream copy (remux) is attempted first: when the codecs are already
+/// compatible with the target container this skips re-encoding entirely, which
+/// is nearly instant and preserves the original quality bit for bit. When the
+/// codecs are incompatible a full re-encode is used as fallback, without any
+/// quality/ resolution adjustments.
 ///
 /// ffmpeg is only spawned for this request and the process terminates as soon
 /// as the conversion completes. The converted file is written next to the
@@ -86,32 +125,19 @@ pub fn convert(filepath: &Path, target_format: &str) -> Result<String, String> {
     let target = output_path.extension().unwrap().to_str().unwrap().to_string();
 
     log::info!("Converting {:?} to {}", filepath, target);
-    let output = Command::new("ffmpeg")
-        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
-        .arg(filepath)
-        .arg(&output_path)
-        .output();
-    match output {
-        Ok(result) if result.status.success() => {
-            log::info!("Converted {:?} to {:?}", filepath, output_path);
-            Ok(output_path.to_string_lossy().to_string())
+    match run_ffmpeg(filepath, &output_path, &["-c", "copy"]) {
+        Ok(_) => {
+            log::info!("Remuxed {:?} to {:?} with stream copy", filepath, output_path);
         }
-        Ok(result) => {
-            let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
-            let reason = if stderr.is_empty() {
-                format!("ffmpeg exited with status '{}' while converting to '{}'", result.status, target)
-            } else {
-                format!("ffmpeg failed while converting to '{}': {}", target, stderr)
-            };
-            log::error!("{}", reason);
-            Err(reason)
-        }
-        Err(error) => {
-            let reason = format!("Unable to invoke ffmpeg: {}", error);
-            log::error!("{}", reason);
-            Err(reason)
+        Err(reason) => {
+            log::debug!("Stream copy failed for {:?}, falling back to re-encode: {}", filepath, reason);
+            let _ = std::fs::remove_file(&output_path);
+            run_ffmpeg(filepath, &output_path, &["-threads", "0"])
+                .map_err(|detail| format!("ffmpeg failed while converting to '{}': {}", target, detail))?;
         }
     }
+    log::info!("Converted {:?} to {:?}", filepath, output_path);
+    Ok(output_path.to_string_lossy().to_string())
 }
 
 /// Tracks the state of background conversion jobs.

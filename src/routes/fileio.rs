@@ -163,8 +163,7 @@ pub async fn edit(request: HttpRequest,
 ///
 /// - `Condition 1` - Validate if the new filename is the same as old.
 /// - `Condition 2` - Validate if the new filename starts or ends with `.` or `_`
-/// - `Condition 3` - Validate if the new filename and the old has the same file extension.
-/// - `Condition 4` - Validate if the new filename has at least one character, apart from the file extension.
+/// - `Condition 3` - Validate if the new filename has at least one character, apart from the file extension.
 ///
 /// # Returns
 ///
@@ -181,12 +180,8 @@ fn is_valid_name(old_filepath: &PathBuf, new_name: &str) -> Result<bool, String>
         new_name.starts_with('.') || new_name.ends_with('.') {
         return Err(format!("New name cannot start or end with '.' or '_'\n\n'{}'", new_name))
     }
-    let old_extension = old_filepath.extension().unwrap().to_str().unwrap();
     let new_extension = new_name.split('.').next_back().unwrap_or_default();
-    if old_extension != new_extension {
-        return Err(format!("File extension cannot be changed\n\n'{new_extension}' => '{old_extension}'"))
-    }
-    if new_name.len() <= old_extension.len() + 1 {
+    if new_name.len() <= new_extension.len() + 1 {
         return Err(format!("At least one character is required as filename\n\nReceived {}", new_name.len()))
     }
     Ok(true)

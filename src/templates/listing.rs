@@ -183,6 +183,15 @@ pub fn get_content() -> String {
             border-radius: 4px;
             box-sizing: border-box;
         }
+        .modal input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0 16px;
+            font-size: 15px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
         .modal-actions {
             display: flex;
             gap: 8px;
@@ -294,12 +303,25 @@ pub fn get_content() -> String {
             </div>
         </div>
     </div>
+    <!-- Rename dialog (hidden by default) -->
+    <div id="renameDialog" class="modal-overlay">
+        <div class="modal">
+            <h3>Rename file</h3>
+            <label for="renameInput">New file name:</label>
+            <input type="text" id="renameInput" spellcheck="false"
+                   onkeydown="if (event.key === 'Enter') submitRename(); if (event.key === 'Escape') closeRenameDialog();">
+            <div class="modal-actions">
+                <button onclick="submitRename()"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Save</button>
+                <button onclick="closeRenameDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
     <!-- Toast notification (hidden by default) -->
     <div id="toast" class="toast"></div>
     <!-- Context menu template (hidden by default) -->
     <div id="contextMenu" class="context-menu icon" style="display: none;">
         <div class="context-menu-item" onclick="editItem(currentPath, 'delete')"><i class="fa-regular fa-trash-can"></i>&nbsp;&nbsp;Delete</div>
-        <div class="context-menu-item" onclick="editItem(currentPath, 'rename')"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Rename</div>
+        <div class="context-menu-item" onclick="openRenameDialog(currentPath)"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Rename</div>
     </div>
     {% if custom_title %}
         <h1>{{ custom_title }}</h1>
@@ -332,7 +354,7 @@ pub fn get_content() -> String {
                                 <button onclick="openConvertDialog('{{ file.path }}')" title="Convert format"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
                             {% endif %}
                             <button onclick="downloadFile('{{ file.path }}')" title="Download"><i class="fa-solid fa-download"></i></button>
-                            <button onclick="editItem('{{ file.path }}', 'rename')" title="Rename"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="openRenameDialog('{{ file.path }}')" title="Rename"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="editItem('{{ file.path }}', 'delete')" title="Delete"><i class="fa-regular fa-trash-can"></i></button>
                         </div>
                     </li>
@@ -457,6 +479,8 @@ pub fn get_content() -> String {
             }));
         }
 
+        let renameTargetPath = null;
+
         function pollConversion(jobId, fileName, format) {
             let poll = setInterval(function() {
                 let status = new XMLHttpRequest();
@@ -486,6 +510,33 @@ pub fn get_content() -> String {
                 };
                 status.send();
             }, 1500);
+        }
+
+        function openRenameDialog(path) {
+            renameTargetPath = path;
+            let input = document.getElementById('renameInput');
+            input.value = extractFileName(path);
+            document.getElementById('renameDialog').style.display = 'flex';
+            input.focus();
+            input.select();
+        }
+
+        function closeRenameDialog() {
+            document.getElementById('renameDialog').style.display = 'none';
+        }
+
+        function submitRename() {
+            if (renameTargetPath === null) {
+                return;
+            }
+            let newName = document.getElementById('renameInput').value;
+            let fileName = extractFileName(renameTargetPath);
+            if (!isValidName(fileName, newName)) {
+                return;
+            }
+            closeRenameDialog();
+            let trueURL = window.location.href + '/' + fileName;
+            editAction('rename', trueURL, renameTargetPath, newName);
         }
     </script>
     <script>
@@ -530,9 +581,9 @@ pub fn get_content() -> String {
                         window.location.reload();
                     } else {
                         if (http.responseText !== "") {
-                            alert(`Error: ${http.responseText}`);
+                            showToast(`Error: ${http.responseText}`, 'error');
                         } else {
-                            alert(`Error: ${http.statusText}`);
+                            showToast(`Error: ${http.statusText}`, 'error');
                         }
                     }
                 }
@@ -565,25 +616,19 @@ pub fn get_content() -> String {
         function isValidName(oldName, newName) {
             // Condition 1 - Validate if the new filename is the same as old.
             if (oldName === newName) {
-                alert(`New name is the same as old\n\n'${oldName}'=='${newName}'`);
+                showToast(`New name is the same as old: '${oldName}'`, 'error');
+                return false;
             }
             // Condition 2 - Validate if the new filename starts or ends with . or _
             if (newName.startsWith('_') || newName.endsWith('_') ||
                 newName.startsWith('.') || newName.endsWith('.')) {
-                alert(`New name cannot start or end with '.' or '_'\n\n${newName}`);
+                showToast(`New name cannot start or end with '.' or '_'`, 'error');
                 return false;
             }
-            // Condition 3 - Validate if the new filename and the old has the same file extension.
-            const oldExtension = oldName.split('.').pop();
+            // Condition 3 - Validate if the new filename has at least one character, apart from the file extension.
             const newExtension = newName.split('.').pop();
-            // Check condition 3
-            if (oldExtension !== newExtension) {
-                alert(`File extension cannot be changed\n\n'${newExtension}' => '${oldExtension}'`);
-                return false;
-            }
-            // Condition 4 - Validate if the new filename has at least one character, apart from the file extension.
-            if (newName.length <= oldExtension.length + 1) {
-                alert(`At least one character is required as filename\n\nReceived ${newName.length}`);
+            if (newName.length <= newExtension.length + 1) {
+                showToast('At least one character is required as filename', 'error');
                 return false;
             }
             return true;
