@@ -228,31 +228,17 @@ pub fn get_content() -> String {
             color: white;
             background-color: #6c7dac;
         }
-        .upload {
-            position: absolute;
-            top: 3.8%;
-            right: 313px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
+        .navbar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
         }
-        .home {
-            position: absolute;
-            top: 3.8%;
-            right: 217px;
+        .navbar button {
             border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .back {
-            position: absolute;
-            top: 3.8%;
-            right: 132px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
+            padding: 8px 14px;
+            font-size: 15px;
             cursor: pointer;
         }
     </style>
@@ -311,9 +297,11 @@ pub fn get_content() -> String {
     </div>
 </noscript>
 <body>
-    <button class="upload" onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
-    <button class="home" onclick="goHome()"><i class="fa fa-home"></i> Home</button>
-    <button class="back" onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+    <div class="navbar">
+        <button onclick="goHome()"><i class="fa fa-home"></i> Home</button>
+        <button onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+        <button onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+    </div>
     <div class="dropdown">
         <button class="dropbtn"><i class="fa fa-user"></i></button>
         <div class="dropdown-content">
@@ -321,7 +309,6 @@ pub fn get_content() -> String {
             <a onclick="logOut()" style="cursor: pointer"><i class="fa fa-sign-out"></i> logout</a>
         </div>
     </div>
-    <br><br><br>
     <div class="container">
         <div class="header-section">
             <h1>Upload Files</h1>

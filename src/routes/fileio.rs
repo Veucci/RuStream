@@ -18,11 +18,41 @@ struct Payload {
     new_name: Option<String>
 }
 
+/// Struct to represent the payload data for an ffmpeg conversion request.
+#[derive(Debug, Deserialize)]
+struct ConvertPayload {
+    url_locator: Option<String>,
+    path_locator: Option<String>,
+    new_format: Option<String>
+}
+
+/// Extracts the relative path from a locator string.
+///
+/// Locators arrive in two forms: `stream/<path>` (from the listing) or
+/// `<host>/stream/<path>` (from the current page URL). A naive `split("stream")`
+/// breaks on filenames that themselves contain the word `stream`, so the
+/// leading `stream/` prefix is stripped explicitly instead.
+///
+/// # Arguments
+///
+/// * `locator` - URL or path locator received from the UI.
+///
+/// # Returns
+///
+/// Returns `Some(relative_path)` if the locator is understood, `None` otherwise.
+fn extract_relative_path(locator: &str) -> Option<&str> {
+    if let Some(rest) = locator.strip_prefix("stream/") {
+        return Some(rest);
+    }
+    locator.split("/stream/").nth(1)
+}
+
 /// Extracts the path the file/directory that has to be modified from the payload received.
 ///
 /// # Arguments
 ///
-/// * `payload` - Payload received from the UI as JSON body.
+/// * `url_locator` - URL locator received from the UI as part of the JSON body.
+/// * `path_locator` - Path locator received from the UI as part of the JSON body.
 /// * `media_source` - Media source configured for the server.
 ///
 /// # Returns
@@ -31,25 +61,18 @@ struct Payload {
 ///
 /// * `Ok(PathBuf)` - If the extraction was successful and the path exists in the server.
 /// * `Err(String)` - If the extraction has failed or if the path doesn't exist in the server.
-fn extract_media_path(payload: &web::Json<Payload>, media_source: &Path) -> Result<PathBuf, String> {
-    let url_locator = payload.url_locator.as_deref();
-    let path_locator = payload.path_locator.as_deref();
-    if let (Some(url_str), Some(path_str)) = (url_locator, path_locator) {
-        // Create a collection since a tuple is a fixed-size collection in rust and doesn't allow iteration
-        for locator in &[url_str, path_str] {
-            if let Some(media_path) = locator.split("stream").nth(1) {
-                // Without stripping the '/' in front of the path, Rust will assume that's a root path
-                // This will overwrite media_source and render the joined path instead of combining the two
-                let path = media_source.join(media_path.strip_prefix('/').unwrap());
-                if path.exists() {
-                    log::debug!("Extracted from '{}'", locator);
-                    return Ok(path);
-                }
+fn extract_media_path(url_locator: &str, path_locator: &str, media_source: &Path) -> Result<PathBuf, String> {
+    // Create a collection since a tuple is a fixed-size collection in rust and doesn't allow iteration
+    for locator in &[url_locator, path_locator] {
+        if let Some(relative_path) = extract_relative_path(locator) {
+            let path = media_source.join(relative_path);
+            if path.exists() {
+                log::debug!("Extracted from '{}'", locator);
+                return Ok(path);
             }
         }
-        return Err(String::from("Unable to extract path from either of the parameters"));
     }
-    Err(String::from("Both URL locator and path locator must be provided"))
+    Err(String::from("Unable to extract path from either of the parameters"))
 }
 
 /// Handles requests for the `/edit` endpoint, to delete/rename media files and directories.
@@ -84,7 +107,10 @@ pub async fn edit(request: HttpRequest,
     }
     let (_host, _last_accessed) = squire::custom::log_connection(&request, &session);
     log::debug!("{}", auth_response.detail);
-    let extracted = extract_media_path(&payload, &config.media_source);
+    let extracted = match (payload.url_locator.as_deref(), payload.path_locator.as_deref()) {
+        (Some(url), Some(path)) => extract_media_path(url, path, &config.media_source),
+        _ => Err(String::from("Both URL locator and path locator must be provided"))
+    };
     // todo: styling of the pop up is very basic
     let media_path: PathBuf = match extracted {
         Ok(path) => {
@@ -239,5 +265,76 @@ fn delete(media_path: PathBuf) -> HttpResponse {
         let reason = format!("{:?} was neither a file nor a directory", media_path);
         log::warn!("{}", reason);
         HttpResponse::BadRequest().body(reason)
+    }
+}
+
+/// Handles requests for the `/convert` endpoint, converting media files with ffmpeg.
+///
+/// ffmpeg is spawned only for this request and is terminated once the conversion
+/// finishes. The converted file is created next to the original file and the
+/// original file is never modified or removed.
+///
+/// # Arguments
+///
+/// * `request` - A reference to the Actix web `HttpRequest` object.
+/// * `payload` - JSON payload with `url_locator`, `path_locator` and `new_format` received from the UI.
+/// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
+/// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
+/// * `metadata` - Struct containing metadata of the application.
+/// * `config` - Configuration data for the application.
+/// * `template` - Configuration container for the loaded templates.
+///
+/// # Returns
+///
+/// * `200` - HttpResponse with the path of the converted file.
+/// * `400` - HttpResponse with an error message for an invalid request.
+/// * `403` - HttpResponse with an error message when ffmpeg support is disabled.
+/// * `500` - HttpResponse with an error message for a failed conversion.
+#[post("/convert")]
+pub async fn convert(request: HttpRequest,
+                     payload: web::Json<ConvertPayload>,
+                     fernet: web::Data<Arc<Fernet>>,
+                     session: web::Data<Arc<constant::Session>>,
+                     metadata: web::Data<Arc<constant::MetaData>>,
+                     config: web::Data<Arc<squire::settings::Config>>,
+                     template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
+    let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
+    if !auth_response.ok {
+        return routes::auth::failed_auth(auth_response, &config);
+    }
+    if !config.ffmpeg_enabled {
+        let reason = "ffmpeg conversion is disabled on this server";
+        log::warn!("{} requested a conversion, but {}", auth_response.username, reason);
+        return HttpResponse::Forbidden().body(reason);
+    }
+    let (_host, _last_accessed) = squire::custom::log_connection(&request, &session);
+    log::debug!("{}", auth_response.detail);
+    let media_path = match (payload.url_locator.as_deref(), payload.path_locator.as_deref()) {
+        (Some(url), Some(path)) => match extract_media_path(url, path, &config.media_source) {
+            Ok(path) => path,
+            Err(msg) => return HttpResponse::BadRequest().body(msg)
+        },
+        _ => return HttpResponse::BadRequest().body("Both URL locator and path locator must be provided")
+    };
+    if !squire::authenticator::verify_secure_index(&media_path, &auth_response.username) {
+        return squire::custom::error(
+            "RESTRICTED SECTION",
+            template.get_template("error").unwrap(),
+            &metadata.pkg_version,
+            format!("This content is not accessible, as it does not belong to the user profile '{}'", auth_response.username),
+            StatusCode::FORBIDDEN
+        );
+    }
+    let target_format = match payload.new_format.as_deref() {
+        Some(format) => format.trim(),
+        None => return HttpResponse::BadRequest().body("New format is missing!")
+    };
+    if target_format.is_empty() {
+        return HttpResponse::BadRequest().body("New format is missing!");
+    }
+    log::info!("{} requested to convert {:?} to '{}'", auth_response.username, media_path, target_format);
+    match squire::ffmpeg::convert(&media_path, target_format) {
+        Ok(output_path) => HttpResponse::Ok().body(output_path),
+        Err(reason) => HttpResponse::InternalServerError().body(reason)
     }
 }

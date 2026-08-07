@@ -34,6 +34,8 @@ pub struct Config {
 
     /// Boolean flag to restrict session_token to be sent only via HTTPS
     pub secure_session: bool,
+    /// Boolean flag to enable on-demand ffmpeg conversions.
+    pub ffmpeg_enabled: bool,
 
     /// Path to the private key file for SSL certificate
     pub key_file: path::PathBuf,
@@ -100,3 +102,6 @@ pub fn default_websites() -> Vec<String> { Vec::new() }
 
 /// Returns the default value for secure_session
 pub fn default_secure_session() -> bool { false }
+
+/// Returns the default value for ffmpeg_enabled (conversion is off unless explicitly enabled)
+pub fn default_ffmpeg_enabled() -> bool { false }

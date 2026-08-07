@@ -28,7 +28,7 @@ pub fn get_content() -> String {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
     <script type="text/javascript" src="https://thevickypedia.github.io/open-source/nightmode/night.js" defer></script>
     <link rel="stylesheet" type="text/css" href="https://thevickypedia.github.io/open-source/nightmode/night.css">
-    <!-- Button CSS -->
+    <!-- Navbar CSS -->
     <style>
         /* Google fonts with a backup alternative */
         @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap');
@@ -42,31 +42,17 @@ pub fn get_content() -> String {
         small {
             font-size: 16px;
         }
-        .upload {
-            position: absolute;
-            top: 3.8%;
-            right: 313px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
+        .navbar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0.5% 0 1.5%;
         }
-        .home {
-            position: absolute;
-            top: 3.8%;
-            right: 217px;
+        .navbar button {
             border: none;
-            padding: 10px 14px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .back {
-            position: absolute;
-            top: 3.8%;
-            right: 132px;
-            border: none;
-            padding: 10px 14px;
-            font-size: 16px;
+            padding: 8px 14px;
+            font-size: 15px;
             cursor: pointer;
         }
     </style>
@@ -104,29 +90,59 @@ pub fn get_content() -> String {
         }
         .dropdown:hover .dropdown-content {display: block;}
     </style>
-    <!-- Title list CSS -->
+    <!-- Title and listing CSS -->
     <style>
         a:hover, a:active { font-size: 102%; opacity: 0.5; }
         a:link { color: blue; }
         a:visited { color: blue; }
         ol {
             list-style: none;
-            counter-reset: list-counter;
+            padding-left: 0;
         }
         li {
-            margin: 1rem;
+            margin: 0.6rem 0;
             list-style-type: none; /* Hide default marker */
         }
-        li::before {
-            background: #4169E1;
-            width: 2rem;
-            height: 2rem;
-            border-radius: 50%;
-            display: inline-block;
-            line-height: 2rem;
-            color: white;
-            text-align: center;
-            margin-right: 0.5rem;
+        .file-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 0.4rem 0.6rem;
+        }
+        .file-row:hover {
+            background: rgba(65, 105, 225, 0.08);
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+        .file-info a {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-meta {
+            color: #888888;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .file-actions button {
+            border: 1px solid #cccccc;
+            background: transparent;
+            padding: 4px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
         }
     </style>
     <style>
@@ -179,9 +195,11 @@ pub fn get_content() -> String {
 </noscript>
 <body translate="no">
     <div class="toggler fa fa-moon-o"></div>
-    <button class="upload" onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
-    <button class="home" onclick="goHome()"><i class="fa fa-home"></i> Home</button>
-    <button class="back" onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+    <div class="navbar">
+        <button onclick="goHome()"><i class="fa fa-home"></i> Home</button>
+        <button onclick="goBack()"><i class="fa fa-backward"></i> Back</button>
+        <button onclick="upload()"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>
+    </div>
     <div class="dropdown">
         <button class="dropbtn"><i class="fa fa-user"></i></button>
         <div class="dropdown-content">
@@ -189,11 +207,10 @@ pub fn get_content() -> String {
             <a onclick="logOut()" style="cursor: pointer"><i class="fa fa-sign-out"></i> logout</a>
         </div>
     </div>
-    <br><br><br><br>
     <!-- Context menu template (hidden by default) -->
     <div id="contextMenu" class="context-menu icon" style="display: none;">
         <div class="context-menu-item" onclick="editItem(currentPath, 'delete')"><i class="fa-regular fa-trash-can"></i>&nbsp;&nbsp;Delete</div>
-        <div class="context-menu-item" onclick="editItem(currentPath, 'rename')"><i class="fa-solid fa-pen"></i></i>&nbsp;&nbsp;Rename</div>
+        <div class="context-menu-item" onclick="editItem(currentPath, 'rename')"><i class="fa-solid fa-pen"></i>&nbsp;&nbsp;Rename</div>
     </div>
     {% if custom_title %}
         <h1>{{ custom_title }}</h1>
@@ -209,13 +226,29 @@ pub fn get_content() -> String {
         <!-- Display number of files and list the files -->
         {% if files %}
             <h3>Files {{ files|length }}</h3>
-            {% for file in files %}
-                {% if secure_path == 'true' %}
-                    <li><i class="{{ file.font }}"></i>&nbsp;&nbsp;<a oncontextmenu="showContextMenu(event, '{{ file.path }}')" href="{{ file.path }}">{{ file.name }}</a></li>
-                {% else %}
-                    <li><i class="{{ file.font }}"></i>&nbsp;&nbsp;<a href="{{ file.path }}">{{ file.name }}</a></li>
-                {% endif %}
-            {% endfor %}
+            <ol>
+                {% for file in files %}
+                    <li class="file-row">
+                        <div class="file-info">
+                            <i class="{{ file.font }}"></i>&nbsp;&nbsp;<a href="{{ file.path }}">{{ file.name }}</a>
+                            {% if file.size or file.duration %}
+                                <span class="file-meta">
+                                    {% if file.size %}{{ file.size }}{% endif %}
+                                    {% if file.duration %} &middot; {{ file.duration }}{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="file-actions">
+                            {% if ffmpeg_enabled and file.video == 'true' %}
+                                <button onclick="convertItem('{{ file.path }}')" title="Convert format"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
+                            {% endif %}
+                            <button onclick="downloadFile('{{ file.path }}')" title="Download"><i class="fa-solid fa-download"></i></button>
+                            <button onclick="editItem('{{ file.path }}', 'rename')" title="Rename"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="editItem('{{ file.path }}', 'delete')" title="Delete"><i class="fa-regular fa-trash-can"></i></button>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
         {% endif %}
         <!-- Display number of directories and list the directories -->
         {% if directories %}
@@ -251,6 +284,50 @@ pub fn get_content() -> String {
         }
         function goBack() {
             window.history.back();
+        }
+    </script>
+    <script>
+        function downloadFile(path) {
+            let filePath = path.replace(/^stream\//, '');
+            window.location.href = window.location.origin + prefixed('/download?file=') + encodeURIComponent(filePath);
+        }
+
+        function convertItem(path) {
+            let fileName = extractFileName(path);
+            let currentFormat = fileName.split('.').pop();
+            let targetFormat = prompt(`Current format is '${currentFormat}'\n\nWhich format do you want to convert to?`);
+            if (!targetFormat) {
+                return;
+            }
+            targetFormat = targetFormat.trim().toLowerCase();
+            if (targetFormat === currentFormat) {
+                alert(`The file is already in '${currentFormat}' format`);
+                return;
+            }
+            let trueURL = window.location.href + '/' + fileName;
+            let http = new XMLHttpRequest();
+            http.open('POST', window.location.origin + prefixed('/convert'), true);
+            http.setRequestHeader('Content-Type', 'application/json');
+            http.onreadystatechange = function() {
+                if (http.readyState === XMLHttpRequest.DONE) {
+                    if (http.status === 200) {
+                        alert(`Converted successfully!\n\n${http.responseText}`);
+                        window.location.reload();
+                    } else {
+                        if (http.responseText !== "") {
+                            alert(`Error: ${http.responseText}`);
+                        } else {
+                            alert(`Error: ${http.statusText}`);
+                        }
+                    }
+                }
+            };
+            let data = {
+                url_locator: trueURL,
+                path_locator: path,
+                new_format: targetFormat
+            };
+            http.send(JSON.stringify(data));
         }
     </script>
     <script>

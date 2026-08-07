@@ -81,12 +81,16 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
 - **secure_session**: Boolean flag to secure the cookie `session_token`. Defaults to `false`
   > If `secure_session` is to set to `true`, the cookie `session_token` will only be sent via HTTPS<br>
   > This means that the server can **ONLY** be hosted via `HTTPS` or `localhost`
+- **ffmpeg_enabled**: Boolean flag to enable on-demand video conversion with ffmpeg. Defaults to `false`
+  > ffmpeg is invoked **only** when a conversion is requested, it does not run in the background<br>
+  > Converted files are written next to the originals, the originals are never modified or removed<br>
+  > Requires `ffmpeg`/`ffprobe` binaries, bundled in the Docker image
 
 > Checkout `.env.example` for a sample of all environment variables and `dotenv` usage.
 
 ### Docker
 
-A multi-stage `Dockerfile` is included, the final image contains only the release binary.
+A multi-stage `Dockerfile` is included, the final image contains only the release binary and ffmpeg.
 
 ```shell
 cp .env.example .env

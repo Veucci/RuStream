@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use actix_web::{HttpRequest, HttpResponse, web};
+use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::StatusCode;
 use fernet::Fernet;
 use minijinja;
@@ -244,7 +245,7 @@ pub async fn stream(request: HttpRequest,
         }
         return render_content(landing, context_builder);
     } else if __target.is_dir() {
-        let listing_page = squire::content::get_dir_stream_content(&filepath, &__target_str, &config.file_formats);
+        let listing_page = squire::content::get_dir_stream_content(&filepath, &__target_str, &config.file_formats, config.ffmpeg_enabled);
         let listing = template.get_template("listing").unwrap();
         let child_dir = __target.iter().next_back().unwrap().to_string_lossy().to_string();
         let custom_title = if child_dir.ends_with(constant::SECURE_INDEX) {
@@ -265,7 +266,8 @@ pub async fn stream(request: HttpRequest,
                 secure_index => constant::SECURE_INDEX,
                 directories => listing_page.directories,
                 secured_directories => listing_page.secured_directories,
-                secure_path => &secure_flag
+                secure_path => &secure_flag,
+                ffmpeg_enabled => config.ffmpeg_enabled
             )).unwrap());
     }
     log::error!("Something went horribly wrong");
@@ -326,6 +328,69 @@ pub async fn streaming_endpoint(request: HttpRequest,
     }
     let error = format!("File {:?} not found", media_path);
     log::error!("{}", error);
+    squire::custom::error(
+        "CONTENT UNAVAILABLE",
+        template.get_template("error").unwrap(),
+        &metadata.pkg_version,
+        format!("'{}' was not found", info.file),
+        StatusCode::NOT_FOUND
+    )
+}
+
+/// Handles requests for the `/download` endpoint, serving media files as attachments.
+///
+/// # Arguments
+///
+/// * `request` - A reference to the Actix web `HttpRequest` object.
+/// * `info` - The query parameter containing the file information.
+/// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
+/// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
+/// * `metadata` - Struct containing metadata of the application.
+/// * `config` - Configuration data for the application.
+/// * `template` - Configuration container for the loaded templates.
+///
+/// # Returns
+///
+/// Returns an `HttpResponse` serving the file for download or an error response.
+#[get("/download")]
+pub async fn download(request: HttpRequest,
+                      info: web::Query<Payload>,
+                      fernet: web::Data<Arc<Fernet>>,
+                      session: web::Data<Arc<constant::Session>>,
+                      metadata: web::Data<Arc<constant::MetaData>>,
+                      config: web::Data<Arc<squire::settings::Config>>,
+                      template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
+    let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
+    if !auth_response.ok {
+        return routes::auth::failed_auth(auth_response, &config);
+    }
+    let media_path = config.media_source.join(&info.file);
+    if !squire::authenticator::verify_secure_index(&media_path, &auth_response.username) {
+        return squire::custom::error(
+            "RESTRICTED SECTION",
+            template.get_template("error").unwrap(),
+            &metadata.pkg_version,
+            format!("This content is not accessible, as it does not belong to the user profile '{}'", auth_response.username),
+            StatusCode::FORBIDDEN
+        );
+    }
+    let (_host, _last_accessed) = squire::custom::log_connection(&request, &session);
+    if media_path.is_file() {
+        log::info!("{} is downloading {}", auth_response.username, info.file);
+        let file = match actix_files::NamedFile::open_async(media_path).await {
+            Ok(file) => file,
+            Err(error) => {
+                let reason = format!("Unable to open the file: {}", error);
+                log::error!("{}", reason);
+                return HttpResponse::InternalServerError().body(reason);
+            }
+        };
+        let disposition = ContentDisposition {
+            disposition: DispositionType::Attachment,
+            parameters: vec![DispositionParam::Filename(info.file.clone())],
+        };
+        return file.set_content_disposition(disposition).into_response(&request);
+    }
     squire::custom::error(
         "CONTENT UNAVAILABLE",
         template.get_template("error").unwrap(),
