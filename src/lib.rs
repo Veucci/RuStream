@@ -84,6 +84,8 @@ pub async fn start() -> io::Result<()> {
             .service(routes::auth::login)
             .service(routes::auth::logout)
             .service(routes::auth::home)
+            .service(routes::basics::profile)
+            .service(routes::fileio::edit)
             .service(routes::auth::error)
             .service(routes::media::track)
             .service(routes::media::stream)
