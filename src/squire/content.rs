@@ -317,7 +317,7 @@ pub fn get_dir_stream_content(path_payload: &String,
     let re = Regex::new(r"(\D+|\d+)").unwrap();
     files.sort_by_key(|a| natural_sort_key(&re, a.get("name").unwrap()));
     directories.sort_by_key(|a| natural_sort_key(&re, a.get("name").unwrap()));
-    ContentPayload { files, directories, ..Default::default() }
+    ContentPayload { files, directories }
 }
 
 /// Represents an iterator structure with optional previous and next elements.
