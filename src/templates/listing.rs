@@ -145,6 +145,76 @@ pub fn get_content() -> String {
             border-radius: 4px;
         }
     </style>
+    <!-- Convert dialog and toast CSS -->
+    <style>
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .modal {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            min-width: 320px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+        .modal h3 {
+            margin: 0 0 8px;
+        }
+        .modal .file-name {
+            color: #555555;
+            margin: 0 0 12px;
+            word-break: break-all;
+        }
+        .modal select {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0 16px;
+            font-size: 15px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .modal-actions button {
+            border: 1px solid #cccccc;
+            background: transparent;
+            padding: 6px 14px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .toast {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 15px;
+            max-width: 90%;
+            word-break: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        .toast.success { background: #2e7d32; }
+        .toast.error { background: #c62828; }
+        .toast.info { background: #1565c0; }
+    </style>
     <style>
         /* Style for context menu */
         .context-menu {
@@ -207,6 +277,25 @@ pub fn get_content() -> String {
             <a onclick="logOut()" style="cursor: pointer"><i class="fa fa-sign-out"></i> logout</a>
         </div>
     </div>
+    <!-- Convert dialog (hidden by default) -->
+    <div id="convertDialog" class="modal-overlay">
+        <div class="modal">
+            <h3>Convert video</h3>
+            <p class="file-name" id="convertFileName"></p>
+            <label for="convertFormat">Convert to:</label>
+            <select id="convertFormat">
+                {% for format in video_formats %}
+                    <option value="{{ format }}">{{ format }}</option>
+                {% endfor %}
+            </select>
+            <div class="modal-actions">
+                <button onclick="startConversion()"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
+                <button onclick="closeConvertDialog()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <!-- Toast notification (hidden by default) -->
+    <div id="toast" class="toast"></div>
     <!-- Context menu template (hidden by default) -->
     <div id="contextMenu" class="context-menu icon" style="display: none;">
         <div class="context-menu-item" onclick="editItem(currentPath, 'delete')"><i class="fa-regular fa-trash-can"></i>&nbsp;&nbsp;Delete</div>
@@ -240,7 +329,7 @@ pub fn get_content() -> String {
                         </div>
                         <div class="file-actions">
                             {% if ffmpeg_enabled and file.video == 'true' %}
-                                <button onclick="convertItem('{{ file.path }}')" title="Convert format"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
+                                <button onclick="openConvertDialog('{{ file.path }}')" title="Convert format"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp;&nbsp;Convert</button>
                             {% endif %}
                             <button onclick="downloadFile('{{ file.path }}')" title="Download"><i class="fa-solid fa-download"></i></button>
                             <button onclick="editItem('{{ file.path }}', 'rename')" title="Rename"><i class="fa-solid fa-pen"></i></button>
@@ -292,42 +381,111 @@ pub fn get_content() -> String {
             window.location.href = window.location.origin + prefixed('/download?file=') + encodeURIComponent(filePath);
         }
 
-        function convertItem(path) {
+        const VIDEO_FORMATS = [{% for format in video_formats %}'{{ format }}',{% endfor %}];
+
+        let convertTargetPath = null;
+        let convertTimer = null;
+
+        function showToast(message, type) {
+            let toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || 'info');
+            toast.style.display = 'block';
+            clearTimeout(convertTimer);
+            convertTimer = setTimeout(function() {
+                toast.style.display = 'none';
+            }, 5000);
+        }
+
+        function openConvertDialog(path) {
             let fileName = extractFileName(path);
-            let currentFormat = fileName.split('.').pop();
-            let targetFormat = prompt(`Current format is '${currentFormat}'\n\nWhich format do you want to convert to?`);
-            if (!targetFormat) {
+            let currentFormat = fileName.split('.').pop().toLowerCase();
+            let select = document.getElementById('convertFormat');
+            select.innerHTML = '';
+            VIDEO_FORMATS.forEach(function(format) {
+                if (format === currentFormat) {
+                    return;
+                }
+                let option = document.createElement('option');
+                option.value = format;
+                option.text = format;
+                select.appendChild(option);
+            });
+            if (select.options.length === 0) {
+                showToast(`No other format is available for '${currentFormat}'`, 'error');
                 return;
             }
-            targetFormat = targetFormat.trim().toLowerCase();
-            if (targetFormat === currentFormat) {
-                alert(`The file is already in '${currentFormat}' format`);
+            convertTargetPath = path;
+            document.getElementById('convertFileName').innerText = fileName;
+            document.getElementById('convertDialog').style.display = 'flex';
+        }
+
+        function closeConvertDialog() {
+            document.getElementById('convertDialog').style.display = 'none';
+        }
+
+        function startConversion() {
+            let format = document.getElementById('convertFormat').value;
+            if (!format || convertTargetPath === null) {
                 return;
             }
+            closeConvertDialog();
+            let fileName = extractFileName(convertTargetPath);
             let trueURL = window.location.href + '/' + fileName;
             let http = new XMLHttpRequest();
             http.open('POST', window.location.origin + prefixed('/convert'), true);
             http.setRequestHeader('Content-Type', 'application/json');
             http.onreadystatechange = function() {
                 if (http.readyState === XMLHttpRequest.DONE) {
-                    if (http.status === 200) {
-                        alert(`Converted successfully!\n\n${http.responseText}`);
-                        window.location.reload();
+                    if (http.status === 202) {
+                        let response = JSON.parse(http.responseText);
+                        showToast(`Converting '${fileName}' to ${format}...`, 'info');
+                        pollConversion(response.job, fileName, format);
                     } else {
                         if (http.responseText !== "") {
-                            alert(`Error: ${http.responseText}`);
+                            showToast(`Error: ${http.responseText}`, 'error');
                         } else {
-                            alert(`Error: ${http.statusText}`);
+                            showToast(`Error: ${http.statusText}`, 'error');
                         }
                     }
                 }
             };
-            let data = {
+            http.send(JSON.stringify({
                 url_locator: trueURL,
-                path_locator: path,
-                new_format: targetFormat
-            };
-            http.send(JSON.stringify(data));
+                path_locator: convertTargetPath,
+                new_format: format
+            }));
+        }
+
+        function pollConversion(jobId, fileName, format) {
+            let poll = setInterval(function() {
+                let status = new XMLHttpRequest();
+                status.open('GET', window.location.origin + prefixed('/convert/status/') + jobId, true);
+                status.onreadystatechange = function() {
+                    if (status.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    if (status.status === 200) {
+                        let job = JSON.parse(status.responseText);
+                        if (job.state === 'running') {
+                            return;
+                        }
+                        clearInterval(poll);
+                        if (job.state === 'done') {
+                            showToast(`'${fileName}' was converted to ${format} successfully`, 'success');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            showToast(`Conversion failed: ${job.detail}`, 'error');
+                        }
+                    } else {
+                        clearInterval(poll);
+                        showToast('Failed to fetch conversion status', 'error');
+                    }
+                };
+                status.send();
+            }, 1500);
         }
     </script>
     <script>

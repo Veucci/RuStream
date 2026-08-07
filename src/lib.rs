@@ -5,6 +5,7 @@
 extern crate actix_web;
 
 use std::io;
+use std::sync::Arc;
 
 use actix_web::{App, HttpServer, middleware, web};
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
@@ -28,6 +29,7 @@ fn configure(cfg: &mut web::ServiceConfig) {
         .service(routes::basics::profile)
         .service(routes::fileio::edit)
         .service(routes::fileio::convert)
+        .service(routes::fileio::convert_status)
         .service(routes::auth::error)
         .service(routes::media::track)
         .service(routes::media::stream)
@@ -82,6 +84,7 @@ pub async fn start() -> io::Result<()> {
     let jinja = templates::environment();
     let fernet = constant::fernet_object();
     let session = constant::session_info();
+    let jobs = Arc::new(squire::ffmpeg::JobTracker::new());
     /*
         || syntax is creating a closure that serves as the argument to the HttpServer::new() method.
         The closure is defining the configuration for the Actix web server.
@@ -93,6 +96,7 @@ pub async fn start() -> io::Result<()> {
             .app_data(web::Data::new(jinja.clone()))
             .app_data(web::Data::new(fernet.clone()))
             .app_data(web::Data::new(session.clone()))
+            .app_data(web::Data::new(jobs.clone()))
             .app_data(web::Data::new(metadata.clone()))
             .app_data(web::PayloadConfig::default().limit(config_clone.max_payload_size))
             .wrap(squire::middleware::get_cors(config_clone.websites.clone()))

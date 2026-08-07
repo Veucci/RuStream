@@ -185,7 +185,8 @@ pub async fn home(request: HttpRequest,
                 secure_index => constant::SECURE_INDEX,
                 directories => listing_page.directories,
                 secured_directories => listing_page.secured_directories,
-                ffmpeg_enabled => config.ffmpeg_enabled
+                ffmpeg_enabled => config.ffmpeg_enabled,
+                video_formats => constant::VIDEO_FORMATS
             )).unwrap()
         )
 }

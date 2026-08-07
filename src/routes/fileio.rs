@@ -1,4 +1,5 @@
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -9,6 +10,7 @@ use fernet::Fernet;
 use serde::Deserialize;
 
 use crate::{constant, routes, squire};
+use crate::squire::ffmpeg::JobTracker;
 
 /// Struct to represent the payload data with the URL locator and path locator and the new name for the file.
 #[derive(Debug, Deserialize)]
@@ -268,11 +270,12 @@ fn delete(media_path: PathBuf) -> HttpResponse {
     }
 }
 
-/// Handles requests for the `/convert` endpoint, converting media files with ffmpeg.
+/// Handles requests for the `/convert` endpoint, starting an ffmpeg conversion.
 ///
-/// ffmpeg is spawned only for this request and is terminated once the conversion
-/// finishes. The converted file is created next to the original file and the
-/// original file is never modified or removed.
+/// The conversion runs in a background thread, the endpoint responds
+/// immediately with the job id. ffmpeg is spawned only for this job and is
+/// terminated once the conversion finishes. The converted file is created next
+/// to the original file and the original file is never modified or removed.
 ///
 /// # Arguments
 ///
@@ -283,13 +286,15 @@ fn delete(media_path: PathBuf) -> HttpResponse {
 /// * `metadata` - Struct containing metadata of the application.
 /// * `config` - Configuration data for the application.
 /// * `template` - Configuration container for the loaded templates.
+/// * `jobs` - Tracker for the background conversion jobs.
 ///
 /// # Returns
 ///
-/// * `200` - HttpResponse with the path of the converted file.
+/// * `202` - HttpResponse with the job id for status polling.
 /// * `400` - HttpResponse with an error message for an invalid request.
 /// * `403` - HttpResponse with an error message when ffmpeg support is disabled.
-/// * `500` - HttpResponse with an error message for a failed conversion.
+/// * `409` - HttpResponse when a conversion to the same target file is already running.
+#[allow(clippy::too_many_arguments)]
 #[post("/convert")]
 pub async fn convert(request: HttpRequest,
                      payload: web::Json<ConvertPayload>,
@@ -297,7 +302,8 @@ pub async fn convert(request: HttpRequest,
                      session: web::Data<Arc<constant::Session>>,
                      metadata: web::Data<Arc<constant::MetaData>>,
                      config: web::Data<Arc<squire::settings::Config>>,
-                     template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
+                     template: web::Data<Arc<minijinja::Environment<'static>>>,
+                     jobs: web::Data<Arc<JobTracker>>) -> HttpResponse {
     let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
     if !auth_response.ok {
         return routes::auth::failed_auth(auth_response, &config);
@@ -332,9 +338,65 @@ pub async fn convert(request: HttpRequest,
     if target_format.is_empty() {
         return HttpResponse::BadRequest().body("New format is missing!");
     }
-    log::info!("{} requested to convert {:?} to '{}'", auth_response.username, media_path, target_format);
-    match squire::ffmpeg::convert(&media_path, target_format) {
-        Ok(output_path) => HttpResponse::Ok().body(output_path),
-        Err(reason) => HttpResponse::InternalServerError().body(reason)
+    // Fail fast on invalid requests, only the ffmpeg execution runs in the background
+    let output_path = match squire::ffmpeg::validate(&media_path, target_format) {
+        Ok(path) => path,
+        Err(reason) => return HttpResponse::BadRequest().body(reason),
+    };
+    if jobs.is_running(&output_path) {
+        let reason = "A conversion to this target file is already in progress";
+        log::warn!("{} requested a conversion, but {}", auth_response.username, reason);
+        return HttpResponse::Conflict().body(reason);
+    }
+    let file_name = media_path.file_name().unwrap().to_string_lossy().to_string();
+    let job_id = format!(
+        "{}_{}",
+        file_name,
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+    );
+    jobs.insert(&job_id, &output_path.to_string_lossy());
+    log::info!("{} requested to convert {:?} to '{}' [job {}]", auth_response.username, media_path, target_format, job_id);
+    let job_tracker = jobs.clone();
+    let convert_path = media_path.clone();
+    let convert_format = target_format.to_string();
+    let job_id_clone = job_id.clone();
+    std::thread::spawn(move || {
+        match squire::ffmpeg::convert(&convert_path, &convert_format) {
+            Ok(output) => job_tracker.finish(&job_id_clone, "done", output),
+            Err(reason) => job_tracker.finish(&job_id_clone, "failed", reason),
+        }
+    });
+    HttpResponse::Accepted().json(serde_json::json!({ "job": job_id }))
+}
+
+/// Handles requests for the `/convert/status/{job_id}` endpoint, returning the state of a conversion job.
+///
+/// # Arguments
+///
+/// * `request` - A reference to the Actix web `HttpRequest` object.
+/// * `job_id` - Job id received in the URL path.
+/// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
+/// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
+/// * `config` - Configuration data for the application.
+/// * `jobs` - Tracker for the background conversion jobs.
+///
+/// # Returns
+///
+/// * `200` - HttpResponse with the job state (`running`/`done`/`failed`) and detail.
+/// * `404` - HttpResponse when the job id is unknown.
+#[get("/convert/status/{job_id:.*}")]
+pub async fn convert_status(request: HttpRequest,
+                            job_id: web::Path<String>,
+                            fernet: web::Data<Arc<Fernet>>,
+                            session: web::Data<Arc<constant::Session>>,
+                            config: web::Data<Arc<squire::settings::Config>>,
+                            jobs: web::Data<Arc<JobTracker>>) -> HttpResponse {
+    let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
+    if !auth_response.ok {
+        return routes::auth::failed_auth(auth_response, &config);
+    }
+    match jobs.get(&job_id) {
+        Some(job) => HttpResponse::Ok().json(job),
+        None => HttpResponse::NotFound().body("Unknown job")
     }
 }

@@ -267,7 +267,8 @@ pub async fn stream(request: HttpRequest,
                 directories => listing_page.directories,
                 secured_directories => listing_page.secured_directories,
                 secure_path => &secure_flag,
-                ffmpeg_enabled => config.ffmpeg_enabled
+                ffmpeg_enabled => config.ffmpeg_enabled,
+                video_formats => constant::VIDEO_FORMATS
             )).unwrap());
     }
     log::error!("Something went horribly wrong");

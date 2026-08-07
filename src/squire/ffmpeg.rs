@@ -1,5 +1,10 @@
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
+use std::time::{Duration, SystemTime};
+
+use serde::Serialize;
 
 use crate::constant;
 
@@ -77,24 +82,8 @@ fn validate_format(current_format: &str, target_format: &str) -> Result<String, 
 /// * `Ok(String)` - Path of the converted file on success.
 /// * `Err(String)` - Reason for the failure.
 pub fn convert(filepath: &Path, target_format: &str) -> Result<String, String> {
-    if !filepath.is_file() {
-        return Err(format!("{:?} is not a valid file entry", filepath));
-    }
-    let current_format = match filepath.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) => ext.to_lowercase(),
-        None => return Err(format!("{:?} has no file extension", filepath)),
-    };
-    if !constant::VIDEO_FORMATS.contains(&current_format.as_str()) {
-        return Err(format!("'{}' is not a convertible video format", current_format));
-    }
-    let target = validate_format(&current_format, target_format)?;
-    let output_path = filepath.with_extension(&target);
-    if output_path.exists() {
-        return Err(format!(
-            "Target file already exists: '{}'. Delete it first, the original file is never overwritten",
-            output_path.to_string_lossy()
-        ));
-    }
+    let output_path = validate(filepath, target_format)?;
+    let target = output_path.extension().unwrap().to_str().unwrap().to_string();
 
     log::info!("Converting {:?} to {}", filepath, target);
     let output = Command::new("ffmpeg")
@@ -123,4 +112,95 @@ pub fn convert(filepath: &Path, target_format: &str) -> Result<String, String> {
             Err(reason)
         }
     }
+}
+
+/// Tracks the state of background conversion jobs.
+pub struct JobTracker {
+    jobs: Mutex<HashMap<String, Job>>,
+}
+
+impl JobTracker {
+    /// Instantiates an empty `JobTracker`.
+    pub fn new() -> Self {
+        JobTracker { jobs: Mutex::new(HashMap::new()) }
+    }
+
+    /// Registers a new running job, dropping stale finished jobs to keep the tracker bounded.
+    pub fn insert(&self, job_id: &str, output_path: &str) {
+        let mut jobs = self.jobs.lock().unwrap();
+        let stale_threshold = SystemTime::now() - Duration::from_secs(600);
+        jobs.retain(|_, job| job.state == "running" || job.created > stale_threshold);
+        jobs.insert(job_id.to_string(), Job {
+            state: "running".to_string(),
+            detail: String::new(),
+            output: output_path.to_string(),
+            created: SystemTime::now(),
+        });
+    }
+
+    /// Updates the state of a finished job.
+    pub fn finish(&self, job_id: &str, state: &str, detail: String) {
+        let mut jobs = self.jobs.lock().unwrap();
+        if let Some(job) = jobs.get_mut(job_id) {
+            job.state = state.to_string();
+            job.detail = detail;
+        }
+    }
+
+    /// Returns a clone of the job if it exists.
+    pub fn get(&self, job_id: &str) -> Option<Job> {
+        self.jobs.lock().unwrap().get(job_id).cloned()
+    }
+
+    /// Returns whether a running job is already writing to the given output file.
+    pub fn is_running(&self, output_path: &Path) -> bool {
+        let output = output_path.to_string_lossy().to_string();
+        self.jobs.lock().unwrap().values().any(|job| job.state == "running" && job.output == output)
+    }
+}
+
+/// Represents the state of a background conversion job.
+#[derive(Clone, Serialize)]
+pub struct Job {
+    /// `running` while ffmpeg is executing, `done` on success, `failed` on error.
+    pub state: String,
+    /// Output path of the converted file on success, error message on failure.
+    pub detail: String,
+    #[serde(skip_serializing)]
+    output: String,
+    #[serde(skip_serializing)]
+    created: SystemTime,
+}
+
+/// Validates a conversion request without running ffmpeg.
+///
+/// # Arguments
+///
+/// * `filepath` - Path to the media file that has to be converted.
+/// * `target_format` - Format the file should be converted into.
+///
+/// # Returns
+///
+/// * `Ok(PathBuf)` - Output path if the request is valid.
+/// * `Err(String)` - Reason for the rejection.
+pub fn validate(filepath: &Path, target_format: &str) -> Result<PathBuf, String> {
+    if !filepath.is_file() {
+        return Err(format!("{:?} is not a valid file entry", filepath));
+    }
+    let current_format = match filepath.extension().and_then(|ext| ext.to_str()) {
+        Some(ext) => ext.to_lowercase(),
+        None => return Err(format!("{:?} has no file extension", filepath)),
+    };
+    if !constant::VIDEO_FORMATS.contains(&current_format.as_str()) {
+        return Err(format!("'{}' is not a convertible video format", current_format));
+    }
+    let target = validate_format(&current_format, target_format)?;
+    let output_path = filepath.with_extension(&target);
+    if output_path.exists() {
+        return Err(format!(
+            "Target file already exists: '{}'. Delete it first, the original file is never overwritten",
+            output_path.to_string_lossy()
+        ));
+    }
+    Ok(output_path)
 }
