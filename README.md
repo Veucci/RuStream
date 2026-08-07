@@ -5,10 +5,13 @@
 [![crates.io][crates-logo]][crate]
 
 [![build][gh-logo]][build]
-[![none-shall-pass][nsp-logo]][nsp]
+[![docker][docker-logo]][ghcr]
 
 #### Summary
 [`RuStream`][repo] is a self-hosted streaming engine, that can render media files via authenticated sessions.
+
+#### Docker Support
+This fork ships with out-of-the-box Docker support via a multi-stage `Dockerfile` and `docker-compose.yaml`. The final image contains only the release binary, all configuration stays in `.env`. See the [Docker](#docker) section for a quick start.
 
 ### Installation
 
@@ -38,22 +41,22 @@ async fn main() {
 
 ###### macOS
 ```shell
-curl -o RuStream-Darwin-x86_64.tar.gz -LH "Accept: application/octet-stream" "https://github.com/thevickypedia/RuStream/releases/latest/download/RuStream-Darwin-x86_64.tar.gz"
+curl -o RuStream-Darwin-x86_64.tar.gz -LH "Accept: application/octet-stream" "https://github.com/Veucci/RuStream/releases/latest/download/RuStream-Darwin-x86_64.tar.gz"
 ```
 
 ###### Linux
 ```shell
-curl -o RuStream-Linux-x86_64.tar.gz -LH "Accept: application/octet-stream" "https://github.com/thevickypedia/RuStream/releases/latest/download/RuStream-Linux-x86_64.tar.gz"
+curl -o RuStream-Linux-x86_64.tar.gz -LH "Accept: application/octet-stream" "https://github.com/Veucci/RuStream/releases/latest/download/RuStream-Linux-x86_64.tar.gz"
 ```
 
 ###### RaspberryPi
 ```shell
-curl -o RuStream-RaspberryPi.tar.gz -LH "Accept: application/octet-stream" "https://github.com/thevickypedia/RuStream/releases/latest/download/RuStream-RaspberryPi.tar.gz"
+curl -o RuStream-RaspberryPi.tar.gz -LH "Accept: application/octet-stream" "https://github.com/Veucci/RuStream/releases/latest/download/RuStream-RaspberryPi.tar.gz"
 ```
 
 ###### Windows
 ```shell
-curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "https://github.com/thevickypedia/RuStream/releases/latest/download/RuStream-Windows-x86_64.zip"
+curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "https://github.com/Veucci/RuStream/releases/latest/download/RuStream-Windows-x86_64.zip"
 ```
 </details>
 
@@ -82,7 +85,19 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
   > If `secure_session` is to set to `true`, the cookie `session_token` will only be sent via HTTPS<br>
   > This means that the server can **ONLY** be hosted via `HTTPS` or `localhost`
 
-> Checkout [GitHub Wiki][gh-wiki-env] for more information about environment variables and `dotenv` usage.
+> Checkout `.env.example` for a sample of all environment variables and `dotenv` usage.
+
+### Docker
+
+A multi-stage `Dockerfile` is included, the final image contains only the release binary.
+
+```shell
+cp .env.example .env
+mkdir media
+docker compose up -d --build
+```
+
+The container listens on port `8000`, the port can be changed by setting `media_port` in `.env`. Media files are served from the `media/` directory, mounted to `/data/media` inside the container, so `media_source` in `.env` must be set to `/data/media`.
 
 ## Crate
 [https://crates.io/crates/RuStream][crate]
@@ -105,26 +120,20 @@ rustup component add clippy
 cargo clippy --no-deps --fix
 ```
 
-## GitHub Wiki - Project Insights
-[https://github.com/thevickypedia/RuStream/wiki][gh-wiki]
-
 ## License & copyright
 
 &copy; Vignesh Rao
 
 Licensed under the [MIT License][license]
 
-[repo]: https://github.com/thevickypedia/RuStream
-[license]: https://github.com/thevickypedia/RuStream/blob/main/LICENSE
-[build]: https://github.com/thevickypedia/RuStream/actions/workflows/rust.yml
+[repo]: https://github.com/Veucci/RuStream
+[license]: https://github.com/Veucci/RuStream/blob/main/LICENSE
+[build]: https://github.com/Veucci/RuStream/actions/workflows/rust.yml
 [rust-src-page]: https://www.rust-lang.org/
 [rust-logo]: https://img.shields.io/badge/Made%20with-Rust-black?style=for-the-badge&logo=Rust
-[gh-logo]: https://github.com/thevickypedia/RuStream/actions/workflows/rust.yml/badge.svg
-[nsp-logo]: https://github.com/thevickypedia/RuStream/actions/workflows/none.yml/badge.svg
-[nsp]: https://github.com/thevickypedia/RuStream/actions/workflows/none.yml
+[gh-logo]: https://github.com/Veucci/RuStream/actions/workflows/rust.yml/badge.svg
+[docker-logo]: https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=Docker&logoColor=white
+[ghcr]: https://github.com/users/Veucci/packages/container/package/rustream
 [crate]: https://crates.io/crates/RuStream
-[gh-checks]: https://github.com/thevickypedia/RuStream/actions/workflows/rust.yml
 [crates-logo]: https://img.shields.io/crates/v/RuStream.svg
-[gh-wiki]: https://github.com/thevickypedia/RuStream/wiki
-[gh-wiki-env]: https://github.com/thevickypedia/RuStream/wiki/Environment-Variables
 [docs]: https://docs.rs/RuStream/latest/rustream/

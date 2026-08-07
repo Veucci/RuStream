@@ -1,14 +1,54 @@
-name: Build, Test and Upload Artifact
+name: CI
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
-    paths-ignore:
-      - '.github/**'
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
 
 jobs:
-  RuStream:
-    uses: thevickypedia/rust-releaser/.github/workflows/entrypoint.yml@main
-    secrets: inherit
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustream
+          path: target/release/rustream
+          if-no-files-found: error
