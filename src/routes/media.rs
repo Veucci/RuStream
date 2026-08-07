@@ -106,9 +106,9 @@ pub async fn track(request: HttpRequest,
     }
     let (_host, _last_accessed) = squire::custom::log_connection(&request, &session);
     log::debug!("{}", auth_response.detail);
-    log::debug!("Track requested: {}", &info.file);
+    log::debug!("Track requested: {}", info.file);
     let filepath = Path::new(&config.media_source).join(&info.file);
-    log::debug!("Track file lookup: {}", &filepath.to_string_lossy());
+    log::debug!("Track file lookup: {}", filepath.to_string_lossy());
     match std::fs::read_to_string(&filepath) {
         Ok(content) => HttpResponse::Ok()
             .content_type("text/plain")
@@ -117,7 +117,7 @@ pub async fn track(request: HttpRequest,
             "CONTENT UNAVAILABLE",
             template.get_template("error").unwrap(),
             &metadata.pkg_version,
-            format!("'{}' was not found", &info.file),
+            format!("'{}' was not found", info.file),
             StatusCode::NOT_FOUND
         )
     }
@@ -131,7 +131,7 @@ pub async fn track(request: HttpRequest,
 /// * `serializable` - `HashMap` that can be serialized into a single block of String to be rendered.
 fn render_content(landing: minijinja::Template,
                   serializable: HashMap<&str, &String>) -> HttpResponse {
-    return match landing.render(serializable) {
+    match landing.render(serializable) {
         Ok(response_body) => {
             HttpResponse::build(StatusCode::OK)
                 .content_type("text/html; charset=utf-8").body(response_body)
@@ -140,7 +140,7 @@ fn render_content(landing: minijinja::Template,
             log::error!("{}", err);
             HttpResponse::FailedDependency().json("Failed to render content.")
         }
-    };
+    }
 }
 
 /// Handles requests for the `/stream/{media_path:.*}` endpoint, serving media files and directories.
@@ -216,7 +216,7 @@ pub async fn stream(request: HttpRequest,
         ].into_iter().collect::<HashMap<_, _>>();
         if constant::IMAGE_FORMATS
             .contains(&render_path.split('.')
-                .last()
+                .next_back()
                 .unwrap()  // file extension WILL be present at this point
                 .to_lowercase().as_str()) {
             context_builder.insert("render_image", &render_path);
@@ -245,7 +245,7 @@ pub async fn stream(request: HttpRequest,
     } else if __target.is_dir() {
         let listing_page = squire::content::get_dir_stream_content(&filepath, &__target_str, &config.file_formats);
         let listing = template.get_template("listing").unwrap();
-        let child_dir = __target.iter().last().unwrap().to_string_lossy().to_string();
+        let child_dir = __target.iter().next_back().unwrap().to_string_lossy().to_string();
         let custom_title = if child_dir.ends_with(constant::SECURE_INDEX) {
             format!(
                 "<i class='fa-solid fa-lock'></i>&nbsp;&nbsp;{}",
@@ -329,7 +329,7 @@ pub async fn streaming_endpoint(request: HttpRequest,
         "CONTENT UNAVAILABLE",
         template.get_template("error").unwrap(),
         &metadata.pkg_version,
-        format!("'{}' was not found", &info.file),
+        format!("'{}' was not found", info.file),
         StatusCode::NOT_FOUND
     )
 }

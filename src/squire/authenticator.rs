@@ -48,7 +48,7 @@ fn extract_credentials(authorization: &HeaderValue) -> Result<Credentials, &'sta
     let header = authorization.to_str().unwrap().to_string();
     // base64 encoded in JavaScript using inbuilt btoa function
     let b64_decode_response = squire::secure::base64_decode(&header);
-    return match b64_decode_response {
+    match b64_decode_response {
         Ok(decoded_auth) => {
             if decoded_auth.is_empty() {
                 log::warn!("Authorization header was received without a value");
@@ -65,7 +65,7 @@ fn extract_credentials(authorization: &HeaderValue) -> Result<Credentials, &'sta
         Err(err) => {
             Err(err)
         }
-    };
+    }
 }
 
 /// Verifies user login based on extracted credentials and configuration settings.

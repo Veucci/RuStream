@@ -76,8 +76,8 @@ pub async fn profile(request: HttpRequest,
     if !last_accessed.is_empty() {
         let filepath = Path::new(&last_accessed);
         let extn = filepath.extension().unwrap().to_str().unwrap();
-        let name = filepath.iter().last().unwrap().to_string_lossy().to_string();
-        let path = format!("/stream/{}", &last_accessed);
+        let name = filepath.iter().next_back().unwrap().to_string_lossy().to_string();
+        let path = format!("/stream/{}", last_accessed);
         let font = if last_accessed.contains(constant::SECURE_INDEX) {
             "fa-solid fa-lock".to_string()
         } else {

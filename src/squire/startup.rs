@@ -390,7 +390,7 @@ fn validate_dir_structure(config: &settings::Config, metadata: &constant::MetaDa
     }
     if errors.is_empty() {
         for username in config.authorization.keys() {
-            let secure_path = &config.media_source.join(format!("{}_{}", &username, constant::SECURE_INDEX));
+            let secure_path = &config.media_source.join(format!("{}_{}", username, constant::SECURE_INDEX));
             if !secure_path.exists() {
                 match std::fs::create_dir(secure_path) {
                     Ok(_) => {
@@ -398,11 +398,11 @@ fn validate_dir_structure(config: &settings::Config, metadata: &constant::MetaDa
                         if config.utc_logging {
                             println!("[{}\x1b[32m INFO\x1b[0m  {}] '{}' has been created",
                                      get_time(config.utc_logging), metadata.crate_name,
-                                     &secure_path.to_str().unwrap())
+                                     secure_path.to_str().unwrap())
                         } else {
                             println!("[{} INFO  {}] '{}' has been created",
                                      get_time(config.utc_logging), metadata.crate_name,
-                                     &secure_path.to_str().unwrap())
+                                     secure_path.to_str().unwrap())
                         }
                     }
                     Err(err) => panic!("{}", err)

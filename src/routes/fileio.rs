@@ -105,7 +105,7 @@ pub async fn edit(request: HttpRequest,
     }
     if let Some(edit_action) = request.headers().get("edit-action") {
         let action = edit_action.to_str().unwrap();
-        log::info!("{} requested to {} {:?}", &auth_response.username, action, &media_path);
+        log::info!("{} requested to {} {:?}", auth_response.username, action, media_path);
         return if action == "delete" {
             return delete(media_path);
         } else if action == "rename" {
@@ -116,7 +116,7 @@ pub async fn edit(request: HttpRequest,
                 HttpResponse::BadRequest().body("New name is missing!")
             }
         } else {
-            log::warn!("Unsupported action: {} requested to {} {:?}", &auth_response.username, action, &media_path);
+            log::warn!("Unsupported action: {} requested to {} {:?}", auth_response.username, action, media_path);
             HttpResponse::BadRequest().body("Unsupported action!")
         };
     }
@@ -154,7 +154,7 @@ fn is_valid_name(old_filepath: &PathBuf, new_name: &str) -> Result<bool, String>
         return Err(format!("New name cannot start or end with '.' or '_'\n\n'{}'", new_name))
     }
     let old_extension = old_filepath.extension().unwrap().to_str().unwrap();
-    let new_extension = new_name.split('.').last().unwrap_or_default();
+    let new_extension = new_name.split('.').next_back().unwrap_or_default();
     if old_extension != new_extension {
         return Err(format!("File extension cannot be changed\n\n'{new_extension}' => '{old_extension}'"))
     }
@@ -189,7 +189,7 @@ fn rename(media_path: PathBuf, new_name: &str) -> HttpResponse {
     let validity = is_valid_name(
         &media_path, new_name
     );
-    return match validity {
+    match validity {
         Ok(_) => {
             let new_path = media_path.parent().unwrap().join(new_name).to_string_lossy().to_string();
             let old_path = media_path.to_string_lossy().to_string();
@@ -204,7 +204,7 @@ fn rename(media_path: PathBuf, new_name: &str) -> HttpResponse {
         Err(msg) => {
             HttpResponse::BadRequest().body(msg)
         }
-    };
+    }
 }
 
 /// Deletes the file.

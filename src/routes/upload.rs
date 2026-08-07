@@ -50,7 +50,7 @@ pub async fn save_files(request: HttpRequest,
     if let Some(secure_flag) = request.headers().get("secure-flag") {
         if secure_flag.to_str().unwrap_or("false") == "true" {
             secure_str = "to secure index ";
-            upload_path.extend([format!("{}_{}", &auth_response.username, constant::SECURE_INDEX)])
+            upload_path.extend([format!("{}_{}", auth_response.username, constant::SECURE_INDEX)])
         }
     }
     while let Some(item) = payload.next().await {
@@ -61,18 +61,18 @@ pub async fn save_files(request: HttpRequest,
                         Some(filename) => filename,
                         None => {
                             let error = "Filename not found in content disposition";
-                            log::error!("{}", &error);
+                            log::error!("{}", error);
                             return HttpResponse::BadRequest().json(error);
                         }
                     },
                     None => {
                         let error = "Content disposition not found";
-                        log::error!("{}", &error);
+                        log::error!("{}", error);
                         return HttpResponse::BadRequest().json(error);
                     }
                 };
-                let mut destination = File::create(&upload_path.join(filename)).unwrap();
-                log::info!("Downloading '{}' {}- uploaded by '{}'", &filename, secure_str, &auth_response.username);
+                let mut destination = File::create(upload_path.join(filename)).unwrap();
+                log::info!("Downloading '{}' {}- uploaded by '{}'", filename, secure_str, auth_response.username);
                 while let Some(fragment) = field.next().await {
                     match fragment {
                         Ok(chunk) => {
@@ -81,7 +81,7 @@ pub async fn save_files(request: HttpRequest,
                         Err(err) => {
                             // User might have aborted file upload
                             let error = format!("Error processing chunk: {}", err);
-                            log::warn!("{}", &error);
+                            log::warn!("{}", error);
                             return HttpResponse::UnprocessableEntity().json(error);
                         }
                     }
@@ -89,7 +89,7 @@ pub async fn save_files(request: HttpRequest,
             }
             Err(err) => {
                 let error = format!("Error processing field: {}", err);
-                log::error!("{}", &error);
+                log::error!("{}", error);
                 return HttpResponse::BadRequest().json(error);
             }
         }

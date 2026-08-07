@@ -99,7 +99,7 @@ fn get_folder_font(path: &Path,
                    parent: String,
                    username: &String) -> HashMap<String, String> {
     let mut entry_map = HashMap::new();
-    entry_map.insert("path".to_string(), format!("stream/{}", &parent));
+    entry_map.insert("path".to_string(), format!("stream/{}", parent));
     if path.to_string_lossy() == format!("{}_{}", username, constant::SECURE_INDEX) {
         entry_map.insert("name".to_string(), parent);
         entry_map.insert("font".to_string(), "fa-solid fa-lock".to_string());
@@ -148,7 +148,7 @@ pub fn get_all_stream_content(config: &settings::Config, auth_response: &authent
                     let components: &Vec<_> = &path.components().collect();
                     if components.len() == 1 {
                         let mut entry_map = HashMap::new();
-                        entry_map.insert("path".to_string(), format!("stream/{}", &file_name));
+                        entry_map.insert("path".to_string(), format!("stream/{}", file_name));
                         entry_map.insert("name".to_string(), file_name.to_string());
                         entry_map.insert("font".to_string(), get_file_font(extension));
                         payload.files.push(entry_map);
@@ -209,7 +209,7 @@ pub fn get_dir_stream_content(path_payload: &String,
         // Use only the final dir in the path, since rest of it will be loaded in the URL itself
         // Not doing this will result in redundant path, like /home/GOT/season1/season1/episode1.mp4 resulting in 404
         let client_path = Path::new(path_payload.split(MAIN_SEPARATOR)
-            .last().unwrap()).join(&entry_name)
+            .next_back().unwrap()).join(&entry_name)
             .to_string_lossy().to_string();
         if server_path.is_file() {
             let file_extn = &server_path.extension().unwrap_or_default().to_string_lossy().to_string();
