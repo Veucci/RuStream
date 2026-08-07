@@ -1,6 +1,5 @@
 use std::{path, thread};
 use std::collections::HashMap;
-use std::net::ToSocketAddrs;
 
 /// Represents the configuration parameters for RuStream.
 pub struct Config {
@@ -57,20 +56,9 @@ pub fn default_media_source() -> path::PathBuf {
     path::PathBuf::from("/data/media")
 }
 
-/// Returns the default media host based on the local machine's IP address.
+/// Returns the default media host (0.0.0.0)
 pub fn default_media_host() -> String {
-    let hostname = "localhost";
-    match (hostname, 0).to_socket_addrs() {
-        Ok(mut addrs) => {
-            if let Some(addr) = addrs.find(|a| a.is_ipv4()) {
-                return addr.ip().to_string();
-            }
-        }
-        Err(err) => {
-            log::error!("Error resolving hostname: {}", err);
-        }
-    }
-    "localhost".to_string()
+    "0.0.0.0".to_string()
 }
 
 /// Returns the default media port (8000)
@@ -84,11 +72,11 @@ pub fn default_file_formats() -> Vec<String> {
     vec!["mp4".to_string(), "mov".to_string(), "jpg".to_string(), "jpeg".to_string()]
 }
 
-/// Returns the default number of worker threads (half of logical cores)
+/// Returns the default number of worker threads (half of logical cores, at least one)
 pub fn default_workers() -> usize {
     let logical_cores = thread::available_parallelism();
     match logical_cores {
-        Ok(cores) => cores.get() / 2,
+        Ok(cores) => (cores.get() / 2).max(1),
         Err(err) => {
             log::error!("{}", err);
             3

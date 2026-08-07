@@ -395,7 +395,10 @@ fn validate_dir_structure(config: &settings::Config, metadata: &constant::MetaDa
                                      secure_path.to_str().unwrap())
                         }
                     }
-                    Err(err) => panic!("{}", err)
+                    Err(err) => panic!(
+                        "'{}' could not be created: {}\n\tEnsure the media_source directory exists and is writable by the current user\n",
+                        secure_path.to_string_lossy(), err
+                    )
                 }
             }
         }

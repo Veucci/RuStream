@@ -66,7 +66,7 @@ curl -o RuStream-Windows-x86_64.zip -LH "Accept: application/octet-stream" "http
   > Files starting/ending with `_` _(underscore)_ and `.` _(dot)_ will be ignored
 - **debug**: Boolean flag to enable debug level logging. Defaults to `false`
 - **utc_logging**: Boolean flag to set timezone to UTC in the output logs. Defaults to `true`
-- **media_host**: IP address to host the server. Defaults to `127.0.0.1` / `localhost`
+- **media_host**: IP address to host the server. Defaults to `0.0.0.0`
 - **media_port**: Port number to host the application. Defaults to `8000`
 - **session_duration**: Time _(in seconds)_ each authenticated session should last. Defaults to `3600`
 - **file_formats**: Vector of supported file formats. Defaults to `[mp4, mov, jpg, jpeg]`
