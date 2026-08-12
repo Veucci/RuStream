@@ -78,33 +78,26 @@ pub async fn login(request: HttpRequest,
     response
 }
 
-/// Handles the logout endpoint, logging out the user and rendering the appropriate HTML page.
+/// Handles the logout endpoint, logging out the user and redirecting to the login page.
 ///
 /// # Arguments
 ///
 /// * `request` - A reference to the Actix web `HttpRequest` object.
 /// * `fernet` - Fernet object to encrypt the auth payload that will be set as `session_token` cookie.
 /// * `session` - Session struct that holds the `session_mapping` and `session_tracker` to handle sessions.
-/// * `metadata` - Struct containing metadata of the application.
 /// * `config` - Configuration data for the application.
-/// * `template` - Configuration container for the loaded templates.
 ///
 /// # Returns
 ///
-/// Returns an `HTTPResponse` with the cookie for `session_token` reset if available.
+/// Returns a redirect to the login page with the `session_token` cookie reset if available.
 #[get("/logout")]
 pub async fn logout(request: HttpRequest,
                     fernet: web::Data<Arc<Fernet>>,
                     session: web::Data<Arc<constant::Session>>,
-                    metadata: web::Data<Arc<constant::MetaData>>,
-                    config: web::Data<Arc<squire::settings::Config>>,
-                    template: web::Data<Arc<minijinja::Environment<'static>>>) -> HttpResponse {
+                    config: web::Data<Arc<squire::settings::Config>>) -> HttpResponse {
     let host = request.connection_info().host().to_owned();
-    let logout_template = template.get_template("logout").unwrap();
-    let mut response = HttpResponse::build(StatusCode::OK);
-    response.content_type("text/html; charset=utf-8");
+    let mut response = HttpResponse::build(StatusCode::FOUND);
 
-    let rendered;
     let auth_response = squire::authenticator::verify_token(&request, &config, &fernet, &session);
     log::debug!("Session Validation Response: {}", auth_response.detail);
 
@@ -119,27 +112,16 @@ pub async fn logout(request: HttpRequest,
         } else {
             log::warn!("Session information for {} was not stored or no file was rendered", host);
         }
-        rendered = logout_template.render(minijinja::context!(
-            version => metadata.pkg_version,
-            base_url => &config.base_url,
-            detail => "You have been logged out successfully."
-        )).unwrap();
-
         let mut cookie = Cookie::new("session_token", "");
         cookie.set_same_site(SameSite::Strict);
         cookie.make_removal();
         response.cookie(cookie);
     } else {
         log::debug!("No stored session found for {}", host);
-        rendered = logout_template.render(minijinja::context!(
-                version => metadata.pkg_version,
-                base_url => &config.base_url,
-                detail => "You are not logged in. Please click the button below to proceed.",
-                show_login => true
-            )).unwrap();
     }
-    // response.finish() is not required since setting the body will close the response
-    response.body(rendered)
+    response
+        .append_header(("Location", routes::join_path(&config.base_url, "/")))
+        .finish()
 }
 
 /// Handles the home endpoint, rendering the listing page for authenticated users.
